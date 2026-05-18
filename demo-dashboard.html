@@ -624,7 +624,7 @@
           </select>
           <select class="form-select" id="filter-hospital" onchange="renderUsageTable()">
             <option value="">全部醫院</option>
-            <option value="NTU">台大醫院</option>
+            <option value="AAN">安安綜合醫院</option>
             <option value="FJU">輔大醫院</option>
           </select>
           <button class="btn btn-primary btn-sm btn-icon" onclick="downloadReport()">⬇ 下載報表</button>
@@ -960,7 +960,7 @@
     <div class="form-row">
       <div class="form-group-inner">
         <label class="form-label">醫院代碼 *</label>
-        <input type="text" class="form-input" id="hospital-id" placeholder="例：NTU、CMU">
+        <input type="text" class="form-input" id="hospital-id" placeholder="例：AAN、MDC">
       </div>
       <div class="form-group-inner">
         <label class="form-label">醫院全名 *</label>
@@ -1018,19 +1018,20 @@
 // ── DEMO MODE: 所有資料內建，無需外部 API ──
 
 const DEMO_HOSPITALS = [
-  { hospital_id:'NTU',  hospital_name:'臺灣大學醫學院附設醫院',  city:'台北市',  status:'已上線',  go_live_date:'2023-01-15', contact_person:'陳志遠',  contact_email:'chen@ntuh.gov.tw',  note:'' },
-  { hospital_id:'VGH',  hospital_name:'臺北榮民總醫院',          city:'台北市',  status:'已上線',  go_live_date:'2023-03-01', contact_person:'林佳穎',  contact_email:'lin@vghtpe.gov.tw', note:'' },
-  { hospital_id:'CGH',  hospital_name:'長庚紀念醫院',            city:'桃園',    status:'已上線',  go_live_date:'2023-06-01', contact_person:'黃文正',  contact_email:'huang@cgmh.org.tw',note:'' },
-  { hospital_id:'CMUH', hospital_name:'中國醫藥大學附設醫院',    city:'台中',    status:'已上線',  go_live_date:'2023-09-01', contact_person:'吳美玲',  contact_email:'wu@cmuh.org.tw',   note:'' },
-  { hospital_id:'NCKUH',hospital_name:'成功大學醫學院附設醫院',  city:'台南',    status:'已上線',  go_live_date:'2024-01-01', contact_person:'蔡宗翰',  contact_email:'tsai@mail.ncku.edu.tw', note:'' },
-  { hospital_id:'KMU',  hospital_name:'高雄醫學大學附設醫院',    city:'高雄',    status:'洽談中',  go_live_date:'',           contact_person:'王淑芬',  contact_email:'wang@kmuh.org.tw', note:'預計Q3上線' },
-  { hospital_id:'HCH',  hospital_name:'新竹台大分院',            city:'新竹',    status:'測試中',  go_live_date:'2024-07-01', contact_person:'鄭建宏',  contact_email:'jheng@ntuh.gov.tw',note:'試行階段' }
+  { hospital_id:'AAN',  hospital_name:'安安綜合醫院',   city:'台北市',  status:'已上線',  go_live_date:'2023-01-15', contact_person:'王小明',  contact_email:'wang@aaan.demo',   note:'' },
+  { hospital_id:'MDC',  hospital_name:'明德醫學中心',   city:'新北市',  status:'已上線',  go_live_date:'2023-03-01', contact_person:'張小華',  contact_email:'chang@mdc.demo',   note:'' },
+  { hospital_id:'KKH',  hospital_name:'康康紀念醫院',   city:'桃園',    status:'已上線',  go_live_date:'2023-06-01', contact_person:'陳小遠',  contact_email:'chen@kkh.demo',    note:'' },
+  { hospital_id:'XXH',  hospital_name:'心心醫院',       city:'台中',    status:'已上線',  go_live_date:'2023-09-01', contact_person:'李小仁',  contact_email:'li@xxh.demo',      note:'' },
+  { hospital_id:'CYH',  hospital_name:'長佑綜合醫院',   city:'台南',    status:'已上線',  go_live_date:'2024-01-01', contact_person:'宋小傑',  contact_email:'sung@cyh.demo',    note:'' },
+  { hospital_id:'AMH',  hospital_name:'安柏醫療院區',   city:'高雄',    status:'洽談中',  go_live_date:'',           contact_person:'潘小遠',  contact_email:'pan@amh.demo',     note:'預計Q3上線' },
+  { hospital_id:'MMH',  hospital_name:'民民聯合醫院',   city:'新竹',    status:'測試中',  go_live_date:'2024-07-01', contact_person:'黃小正',  contact_email:'huang@mmh.demo',   note:'試行階段' }
 ];
 
 const DEMO_USAGE = (() => {
   const rows = [];
-  const base = { NTU:210, VGH:185, CGH:155, CMUH:130, NCKUH:95, KMU:0, HCH:60 };
-  const start = { NTU:[2023,1], VGH:[2023,3], CGH:[2023,6], CMUH:[2023,9], NCKUH:[2024,1], KMU:[2025,7], HCH:[2024,7] };
+  // 基礎值控制在 100 以下，加上趨勢後也不超過 99
+  const base = { AAN:55, MDC:48, KKH:42, XXH:35, CYH:28, AMH:0, MMH:18 };
+  const start = { AAN:[2023,1], MDC:[2023,3], KKH:[2023,6], XXH:[2023,9], CYH:[2024,1], AMH:[2025,7], MMH:[2024,7] };
   let id = 1;
   const now = new Date();
   for(const [code, bv] of Object.entries(base)){
@@ -1040,10 +1041,10 @@ const DEMO_USAGE = (() => {
       for(let m = (y===sy?sm:1); m <= 12; m++){
         if(y > now.getFullYear() || (y===now.getFullYear() && m > now.getMonth()+1)) break;
         const trend = Math.floor((y - sy)*12 + (m - sm));
-        const growth = Math.min(trend * 2, 80);
-        const seasonal = [0,5,8,12,10,14,18,16,20,22,18,12][m-1];
-        const noise = Math.floor((Math.random()-0.5)*20);
-        const val = Math.max(10, bv + growth + seasonal + noise);
+        const growth = Math.min(trend * 0.4, 20);
+        const seasonal = [0,2,3,4,3,5,6,5,7,8,6,4][m-1];
+        const noise = Math.floor((Math.random()-0.5)*8);
+        const val = Math.min(99, Math.max(5, Math.round(bv + growth + seasonal + noise)));
         rows.push({ id: id++, hospital_id: code, year: y, month: m, usage_count: val, last_update_time: `${y}-${String(m).padStart(2,'0')}-28 10:00:00` });
       }
     }
@@ -1052,24 +1053,24 @@ const DEMO_USAGE = (() => {
 })();
 
 const DEMO_MAINTENANCE = [
-  { id:1,  hospital_id:'NTU',  datetime:'2024-02-14 09:30:00', issue_type:'設備連線異常', description:'檢驗儀器無法連接至系統',         solution:'重新設定IP綁定，恢復連線',          reporter:'陳志遠', status:'已解決' },
-  { id:2,  hospital_id:'VGH',  datetime:'2024-03-22 14:10:00', issue_type:'報告產出異常', description:'PDF報告格式跑版',                 solution:'更新報表範本檔案',                  reporter:'林佳穎', status:'已解決' },
-  { id:3,  hospital_id:'CGH',  datetime:'2024-04-05 10:00:00', issue_type:'資料庫連線',   description:'資料庫寫入延遲，查詢超時',       solution:'擴充連接池上限，調整timeout設定',   reporter:'黃文正', status:'已解決' },
-  { id:4,  hospital_id:'NTU',  datetime:'2024-05-18 16:45:00', issue_type:'前端網站',     description:'Dashboard圖表無法正常顯示',      solution:'清除CDN快取後恢復正常',             reporter:'陳志遠', status:'已解決' },
-  { id:5,  hospital_id:'CMUH', datetime:'2024-06-03 11:20:00', issue_type:'HIS開單',      description:'HIS開單介面整合失敗',             solution:'更新API Token重新授權',             reporter:'吳美玲', status:'已解決' },
-  { id:6,  hospital_id:'NCKUH',datetime:'2024-08-19 09:00:00', issue_type:'設備連線異常', description:'新儀器型號驅動程式不相容',       solution:'安裝相容驅動，確認正常',            reporter:'蔡宗翰', status:'已解決' },
-  { id:7,  hospital_id:'HCH',  datetime:'2024-09-12 14:30:00', issue_type:'資料庫連線',   description:'測試期間資料庫連線不穩',         solution:'待處理',                            reporter:'鄭建宏', status:'處理中' },
-  { id:8,  hospital_id:'VGH',  datetime:'2024-11-07 10:15:00', issue_type:'報告產出異常', description:'特定檢驗項目報告缺漏欄位',       solution:'修正資料對應欄位定義',             reporter:'林佳穎', status:'已解決' },
-  { id:9,  hospital_id:'NTU',  datetime:'2025-01-23 15:00:00', issue_type:'前端網站',     description:'使用者反映登入頁面顯示異常',     solution:'修正CSS相容性問題',                 reporter:'陳志遠', status:'已解決' },
-  { id:10, hospital_id:'CMUH', datetime:'2025-03-08 09:40:00', issue_type:'HIS開單',      description:'批次開單回傳狀態碼錯誤',         solution:'調整API呼叫邏輯',                   reporter:'吳美玲', status:'已解決' },
-  { id:11, hospital_id:'CGH',  datetime:'2025-04-15 13:00:00', issue_type:'設備連線異常', description:'防火牆規則調整導致設備斷線',     solution:'配合IT更新ACL白名單',               reporter:'黃文正', status:'已解決' },
-  { id:12, hospital_id:'NCKUH',datetime:'2025-05-02 11:00:00', issue_type:'其他',          description:'每月報表匯出格式需調整',         solution:'持續追蹤',                          reporter:'蔡宗翰', status:'處理中' }
+  { id:1,  hospital_id:'AAN', datetime:'2024-02-14 09:30:00', issue_type:'設備連線異常', description:'檢驗儀器無法連接至系統',         solution:'重新設定IP綁定，恢復連線',         reporter:'王小明', status:'已解決' },
+  { id:2,  hospital_id:'MDC', datetime:'2024-03-22 14:10:00', issue_type:'報告產出異常', description:'PDF報告格式跑版',                 solution:'更新報表範本檔案',                 reporter:'張小華', status:'已解決' },
+  { id:3,  hospital_id:'KKH', datetime:'2024-04-05 10:00:00', issue_type:'資料庫連線',   description:'資料庫寫入延遲，查詢超時',       solution:'擴充連接池上限，調整timeout設定',  reporter:'陳小遠', status:'已解決' },
+  { id:4,  hospital_id:'AAN', datetime:'2024-05-18 16:45:00', issue_type:'前端網站',     description:'Dashboard圖表無法正常顯示',      solution:'清除CDN快取後恢復正常',            reporter:'王小明', status:'已解決' },
+  { id:5,  hospital_id:'XXH', datetime:'2024-06-03 11:20:00', issue_type:'HIS開單',      description:'HIS開單介面整合失敗',             solution:'更新API Token重新授權',            reporter:'李小仁', status:'已解決' },
+  { id:6,  hospital_id:'CYH', datetime:'2024-08-19 09:00:00', issue_type:'設備連線異常', description:'新儀器型號驅動程式不相容',       solution:'安裝相容驅動，確認正常',           reporter:'宋小傑', status:'已解決' },
+  { id:7,  hospital_id:'MMH', datetime:'2024-09-12 14:30:00', issue_type:'資料庫連線',   description:'測試期間資料庫連線不穩',         solution:'待處理',                           reporter:'黃小正', status:'處理中' },
+  { id:8,  hospital_id:'MDC', datetime:'2024-11-07 10:15:00', issue_type:'報告產出異常', description:'特定檢驗項目報告缺漏欄位',       solution:'修正資料對應欄位定義',             reporter:'張小華', status:'已解決' },
+  { id:9,  hospital_id:'AAN', datetime:'2025-01-23 15:00:00', issue_type:'前端網站',     description:'使用者反映登入頁面顯示異常',     solution:'修正CSS相容性問題',                reporter:'王小明', status:'已解決' },
+  { id:10, hospital_id:'XXH', datetime:'2025-03-08 09:40:00', issue_type:'HIS開單',      description:'批次開單回傳狀態碼錯誤',         solution:'調整API呼叫邏輯',                  reporter:'李小仁', status:'已解決' },
+  { id:11, hospital_id:'KKH', datetime:'2025-04-15 13:00:00', issue_type:'設備連線異常', description:'防火牆規則調整導致設備斷線',     solution:'配合IT更新ACL白名單',              reporter:'陳小遠', status:'已解決' },
+  { id:12, hospital_id:'CYH', datetime:'2025-05-02 11:00:00', issue_type:'其他',          description:'每月報表匯出格式需調整',         solution:'持續追蹤',                         reporter:'宋小傑', status:'處理中' }
 ];
 
 const DEMO_ACCOUNTS = [
-  { id:1, username:'admin',   password:'1234', name:'系統管理員', role:'admin',   hospital_id:'',     email:'admin@medstats.demo',   status:'active', create_time:'2023-01-01' },
-  { id:2, username:'staff',   password:'1234', name:'張雅婷',     role:'staff',   hospital_id:'',     email:'staff@medstats.demo',   status:'active', create_time:'2023-01-05' },
-  { id:3, username:'partner', password:'1234', name:'陳志遠',     role:'partner', hospital_id:'NTU',  email:'chen@ntuh.gov.tw',      status:'active', create_time:'2023-01-15' }
+  { id:1, username:'admin',   password:'1234', name:'系統管理員', role:'admin',   hospital_id:'',    email:'admin@medstats.demo',  status:'active', create_time:'2023-01-01' },
+  { id:2, username:'staff',   password:'1234', name:'李小婷',     role:'staff',   hospital_id:'',    email:'li@medstats.demo',     status:'active', create_time:'2023-01-05' },
+  { id:3, username:'partner', password:'1234', name:'張大名',     role:'partner', hospital_id:'AAN', email:'chang@medstats.demo',  status:'active', create_time:'2023-01-15' }
 ];
 const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 const PALETTE = ['#0062cc','#0d9488','#7c3aed','#d97706','#dc2626','#16a34a','#0ea5e9','#14b8a6'];
