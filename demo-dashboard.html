@@ -1,0 +1,2374 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>醫療檢驗執行次數統計平台</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --surface: #ffffff;
+    --surface2: #f0f4f8;
+    --border: #e2e8f0;
+    --border2: #cbd5e1;
+    --text1: #0f172a;
+    --text2: #475569;
+    --text3: #94a3b8;
+    --accent: #0062cc;
+    --accent2: #1a7de0;
+    --accent-light: #dbeafe;
+    --accent-pale: #eff6ff;
+    --teal: #0d9488;
+    --teal-light: #ccfbf1;
+    --green: #16a34a;
+    --green-light: #dcfce7;
+    --amber: #d97706;
+    --amber-light: #fef3c7;
+    --red: #dc2626;
+    --red-light: #fee2e2;
+    --purple: #7c3aed;
+    --purple-light: #ede9fe;
+    --sidebar-w: 240px;
+    --header-h: 60px;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,.08);
+    --font: 'Noto Sans TC', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text1);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ─── AUTH ─── */
+  #auth-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0f2d5a 0%, #1a4a8a 50%, #0e3872 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  #auth-screen::before {
+    content: '';
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.03);
+    top: -200px; right: -100px;
+  }
+  #auth-screen::after {
+    content: '';
+    position: absolute;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.03);
+    bottom: -100px; left: -100px;
+  }
+  .auth-card {
+    background: white;
+    border-radius: 16px;
+    padding: 40px 44px;
+    width: 420px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.35);
+    position: relative;
+    z-index: 1;
+  }
+  .auth-logo {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 32px;
+  }
+  .auth-logo-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, #0062cc, #0e9fce);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .auth-logo-text { font-size: 18px; font-weight: 700; color: #0f172a; letter-spacing: -.3px; }
+  .auth-logo-sub { font-size: 11px; color: #64748b; letter-spacing: .5px; text-transform: uppercase; }
+  .auth-title { font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+  .auth-sub { font-size: 13px; color: #64748b; margin-bottom: 28px; }
+  .form-group { margin-bottom: 18px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+  .form-group input {
+    width: 100%; padding: 10px 14px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #0f172a;
+    transition: border-color .2s;
+    outline: none;
+    font-family: var(--font);
+  }
+  .form-group input:focus { border-color: #0062cc; box-shadow: 0 0 0 3px rgba(0,98,204,.1); }
+  .auth-hint { font-size: 11px; color: #94a3b8; margin-top: 16px; text-align: center; }
+  .auth-btn {
+    width: 100%; padding: 12px;
+    background: linear-gradient(135deg, #0062cc, #1a7de0);
+    color: white; border: none;
+    border-radius: 8px; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: transform .1s, box-shadow .1s;
+    font-family: var(--font);
+    margin-top: 4px;
+  }
+  .auth-btn:hover { box-shadow: 0 4px 12px rgba(0,98,204,.35); transform: translateY(-1px); }
+  .auth-btn:active { transform: translateY(0); }
+  .auth-error { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c;
+    padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+
+  /* ─── LAYOUT ─── */
+  #app { display: flex; min-height: 100vh; }
+
+  /* ─── SIDEBAR ─── */
+  #sidebar {
+    width: var(--sidebar-w);
+    background: #0f2d5a;
+    display: flex; flex-direction: column;
+    position: fixed; top: 0; left: 0; height: 100vh;
+    z-index: 100;
+    transition: width .25s;
+  }
+  .sidebar-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sidebar-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, #2272d4, #0e9fce);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .sidebar-title { font-size: 14px; font-weight: 700; color: #f0f9ff; letter-spacing: -.2px; }
+  .sidebar-sub { font-size: 10px; color: rgba(255,255,255,.4); letter-spacing: .4px; }
+  .sidebar-nav { padding: 12px 10px; flex: 1; overflow-y: auto; }
+  .nav-section { margin-bottom: 20px; }
+  .nav-section-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 1px;
+    color: rgba(255,255,255,.3); padding: 0 10px 6px;
+    text-transform: uppercase;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 8px;
+    color: rgba(255,255,255,.65); cursor: pointer;
+    transition: background .15s, color .15s;
+    font-size: 13.5px; font-weight: 500;
+    margin-bottom: 2px;
+  }
+  .nav-item:hover { background: rgba(255,255,255,.08); color: #fff; }
+  .nav-item.active { background: rgba(255,255,255,.12); color: #fff; }
+  .nav-item .ni { width: 18px; text-align: center; font-size: 15px; }
+  .sidebar-user {
+    padding: 14px 16px;
+    border-top: 1px solid rgba(255,255,255,.08);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .user-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: white; flex-shrink: 0;
+  }
+  .user-name { font-size: 13px; font-weight: 600; color: #f0f9ff; }
+  .user-role { font-size: 11px; color: rgba(255,255,255,.4); }
+  .logout-btn {
+    margin-left: auto; padding: 4px 8px;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 6px; color: rgba(255,255,255,.5);
+    cursor: pointer; font-size: 11px; transition: all .15s;
+    font-family: var(--font);
+  }
+  .logout-btn:hover { background: rgba(255,0,0,.2); color: #fff; }
+
+  /* ─── MAIN ─── */
+  #main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; }
+  #header {
+    height: auto; min-height: 36px; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 8px 28px;
+    position: sticky; top: 0; z-index: 50;
+    gap: 12px;
+  }
+  .header-badge {
+    font-size: 11px; font-weight: 600; padding: 3px 10px;
+    border-radius: 20px; letter-spacing: .3px;
+  }
+  .badge-admin { background: var(--purple-light); color: var(--purple); }
+  .badge-staff { background: var(--accent-light); color: var(--accent); }
+  .badge-partner { background: var(--teal-light); color: var(--teal); }
+
+  /* ─── CONTENT PAGES ─── */
+  .page { display: none; padding: 28px; }
+  .page.active { display: block; }
+
+  /* ─── CARDS ─── */
+  .card {
+    background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border); padding: 20px;
+    box-shadow: var(--shadow);
+  }
+  .card-title { font-size: 15px; font-weight: 700; color: var(--text1); margin-bottom: 14px; }
+  .card-subtitle { font-size: 12px; color: var(--text3); margin-top: 2px; font-weight: 400; }
+
+  /* ─── STAT CARDS ─── */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border); padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+  .stat-label { font-size: 12px; color: var(--text2); font-weight: 500; margin-bottom: 8px; }
+  .stat-value { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+  .stat-change { font-size: 12px; margin-top: 4px; }
+  .stat-change.up { color: var(--green); }
+  .stat-change.dn { color: var(--red); }
+  .stat-v-blue { color: var(--accent); }
+  .stat-v-teal { color: var(--teal); }
+  .stat-v-green { color: var(--green); }
+  .stat-v-amber { color: var(--amber); }
+
+  /* ─── CHARTS GRID ─── */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 24px; }
+  .chart-full { grid-column: 1/-1; }
+  .chart-wrap { position: relative; height: 260px; }
+  .chart-wrap canvas { width: 100% !important; height: 100% !important; }
+
+  /* ─── TABLE ─── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { border-bottom: 2px solid var(--border); }
+  thead th { font-size: 12px; font-weight: 600; color: var(--text2);
+    padding: 10px 14px; text-align: left; white-space: nowrap;
+    background: var(--surface2); }
+  thead th:first-child { border-radius: 8px 0 0 0; }
+  thead th:last-child { border-radius: 0 8px 0 0; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .12s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--accent-pale); }
+  tbody td { padding: 11px 14px; font-size: 13.5px; color: var(--text1); }
+  .td-num { font-weight: 700; color: var(--accent); text-align: right; }
+  .td-center { text-align: center; }
+
+  /* ─── PILLS ─── */
+  .pill {
+    display: inline-flex; align-items: center;
+    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  }
+  .pill-blue { background: var(--accent-light); color: var(--accent); }
+  .pill-green { background: var(--green-light); color: var(--green); }
+  .pill-amber { background: var(--amber-light); color: var(--amber); }
+  .pill-red { background: var(--red-light); color: var(--red); }
+  .pill-purple { background: var(--purple-light); color: var(--purple); }
+  .pill-teal { background: var(--teal-light); color: var(--teal); }
+
+  /* ─── FORMS ─── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-group-inner { margin-bottom: 0; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 5px; display: block; }
+  .form-input, .form-select, .form-textarea {
+    width: 100%; padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 13.5px;
+    color: var(--text1); background: var(--surface);
+    transition: border-color .15s;
+    outline: none; font-family: var(--font);
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,98,204,.08);
+  }
+  .form-textarea { min-height: 90px; resize: vertical; }
+  .form-row { display: flex; gap: 12px; margin-bottom: 16px; }
+  .form-row .form-group-inner { flex: 1; }
+
+  /* ─── BUTTONS ─── */
+  .btn { padding: 8px 18px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; border: none; font-family: var(--font); white-space: nowrap; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,98,204,.3); }
+  .btn-secondary { background: var(--surface); color: var(--text1); border: 1.5px solid var(--border2); }
+  .btn-secondary:hover { background: var(--surface2); }
+  .btn-danger { background: var(--red); color: white; }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-icon { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+
+  /* ─── TABS ─── */
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid var(--border); }
+  .tab {
+    padding: 9px 18px; font-size: 13px; font-weight: 600;
+    color: var(--text2); cursor: pointer; border-radius: 8px 8px 0 0;
+    transition: all .15s; border: none; background: none; font-family: var(--font);
+    border-bottom: 2px solid transparent; margin-bottom: -2px;
+  }
+  .tab:hover { color: var(--accent); background: var(--accent-pale); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ─── MAP ─── */
+  #taiwan-map-container { position: relative; }
+  .map-tooltip {
+    position: absolute; background: var(--text1); color: white;
+    padding: 8px 12px; border-radius: 8px; font-size: 12px;
+    pointer-events: none; z-index: 10; display: none;
+    white-space: nowrap; box-shadow: var(--shadow-md);
+  }
+
+  /* ─── MODAL ─── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,.45); z-index: 200;
+    display: none; align-items: center; justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: 14px;
+    padding: 28px 32px; width: 520px; max-width: 94vw;
+    max-height: 85vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    animation: modalIn .2s ease;
+  }
+  @keyframes modalIn { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
+  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 20px; color: var(--text1); }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+
+  /* ─── FILTER BAR ─── */
+  .filter-bar {
+    display: flex; align-items: center; gap: 12px;
+    flex-wrap: wrap; margin-bottom: 18px;
+  }
+  .filter-bar .form-select, .filter-bar .form-input { width: auto; min-width: 120px; }
+
+  /* ─── MISC ─── */
+  .section-title { font-size: 18px; font-weight: 800; color: var(--text1); margin-bottom: 4px; }
+  .section-sub { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+  .flex { display: flex; }
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .gap-10 { gap: 10px; }
+  .mb-16 { margin-bottom: 16px; }
+  .mb-20 { margin-bottom: 20px; }
+  .text-right { text-align: right; }
+  .text-center { text-align: center; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+  .empty-state { text-align: center; padding: 50px 20px; color: var(--text3); }
+  .empty-state .es-icon { font-size: 40px; margin-bottom: 12px; }
+  .upload-area {
+    border: 2px dashed var(--border2); border-radius: var(--radius);
+    padding: 24px; text-align: center; cursor: pointer;
+    transition: all .15s; color: var(--text3);
+  }
+  .upload-area:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-pale); }
+
+  /* ─── PREDICTION CARD ─── */
+  .prediction-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    background: var(--purple-light); color: var(--purple); margin-bottom: 12px;
+  }
+
+  /* responsive */
+
+  .medical-icon {
+    position: relative;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .medical-icon::before {
+    content: '＋';
+    font-size: 22px;
+    font-weight: 900;
+    color: #fff;
+    line-height: 1;
+  }
+  .auth-logo-icon.medical-icon::before { font-size: 26px; }
+  .sidebar-icon.medical-icon::before { font-size: 20px; }
+
+  .map-photo-wrap {
+    position: relative;
+    width: 300px;
+    max-width: 100%;
+    flex-shrink: 0;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: #eef2f7;
+    box-shadow: var(--shadow);
+  }
+  .map-photo-wrap img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .map-marker {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 10px rgba(15,23,42,.25);
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+  }
+  .map-marker::after {
+    content: attr(data-short);
+    position: absolute;
+    top: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(15,23,42,.78);
+    padding: 2px 7px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .map-legend {
+    display:flex;
+    gap:16px;
+    align-items:center;
+    flex-wrap:wrap;
+    margin-top:12px;
+    font-size:12px;
+    color:var(--text2);
+  }
+  .legend-dot {
+    width:10px;
+    height:10px;
+    border-radius:50%;
+    display:inline-block;
+    margin-right:6px;
+    vertical-align:middle;
+  }
+  .action-group { display:flex; gap:8px; flex-wrap:wrap; }
+  .btn-warning { background: var(--amber-light); color: var(--amber); border:1px solid #f7d9a6; }
+  .btn-warning:hover { background: #fde7ba; }
+
+  @media (max-width: 900px) {
+    :root { --sidebar-w: 200px; }
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .chart-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════ AUTH SCREEN ════ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon medical-icon" aria-hidden="true"></div>
+      <div>
+        <div class="auth-logo-text">MedStats</div>
+        <div class="auth-logo-sub">醫療資訊系統 Demo</div>
+      </div>
+    </div>
+    <div class="auth-title">登入系統</div>
+    <div class="auth-sub">醫療檢驗執行次數統計平台</div>
+    <div class="auth-error" id="auth-error">帳號或密碼錯誤，請重試。</div>
+    <div class="form-group">
+      <label>帳號</label>
+      <input type="text" id="login-user" placeholder="請輸入帳號" autocomplete="username" />
+    </div>
+    <div class="form-group">
+      <label>密碼</label>
+      <input type="password" id="login-pass" placeholder="請輸入密碼" autocomplete="current-password" />
+    </div>
+    <button class="auth-btn" onclick="doLogin()">登入</button>
+    <div class="auth-hint">
+      平台資料僅供內部或合作廠商調閱
+    </div>
+  </div>
+</div>
+
+<!-- ════ APP ════ -->
+<div id="app" style="display:none">
+
+  <!-- SIDEBAR -->
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-icon medical-icon" aria-hidden="true"></div>
+      <div>
+        <div class="sidebar-title">MedStats</div>
+        <div class="sidebar-sub">EBM Technologies</div>
+      </div>
+    </div>
+    <div class="sidebar-nav" id="sidebar-nav"></div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="user-avatar">A</div>
+      <div>
+        <div class="user-name" id="user-name-display">管理員</div>
+        <div class="user-role" id="user-role-display">最高權限管理員</div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">登出</button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div id="header" style="display:none"></div>
+
+    <!-- PAGE: DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="section-title">總覽儀表板</div>
+      <div class="section-sub">各合作醫院檢驗執行情況一覽</div>
+
+      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card">
+          <div class="stat-label">本月總使用次數</div>
+          <div class="stat-value stat-v-blue" id="stat-month-usage">0</div>
+          <div class="stat-change" id="stat-month-change">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">合作醫院數</div>
+          <div class="stat-value stat-v-teal" id="stat-hospital-count">0</div>
+          <div class="stat-change" id="stat-online-count">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">累計總使用次數</div>
+          <div class="stat-value stat-v-green" id="stat-total-usage">0</div>
+          <div class="stat-change" id="stat-last-update">—</div>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="card chart-full">
+          <div class="flex-between mb-16" style="align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="flex-shrink:0">
+              <div class="card-title" style="margin-bottom:2px">各月份使用次數趨勢</div>
+              <div class="card-subtitle" id="trend-subtitle">依年月區間檢視各醫院每月使用次數折線圖</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin-left:auto">
+              <select class="form-select" id="dashboard-trend-year-from" onchange="updateDashboardTrend()" style="width:90px"></select>
+              <select class="form-select" id="dashboard-trend-month-from" onchange="updateDashboardTrend()" style="width:72px"></select>
+              <span style="color:var(--text3);font-size:13px;white-space:nowrap">～</span>
+              <select class="form-select" id="dashboard-trend-year-to" onchange="updateDashboardTrend()" style="width:90px"></select>
+              <select class="form-select" id="dashboard-trend-month-to" onchange="updateDashboardTrend()" style="width:72px"></select>
+              <button class="btn btn-secondary btn-sm btn-icon" onclick="downloadReport()" style="white-space:nowrap;flex-shrink:0">⬇ 下載報表</button>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="chart-trend"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">各醫院使用比例</div>
+          <div class="card-subtitle" id="pie-subtitle">依查詢年月同步更新</div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chart-pie"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="flex-between mb-16" style="align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="flex-shrink:0">
+              <div class="card-title" style="margin-bottom:2px">各醫院月使用量</div>
+              <div class="card-subtitle" id="bar-subtitle">可依年月切換檢視</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin-left:auto">
+              <select class="form-select" id="dashboard-month-year" onchange="updateDashboardMonth()" style="width:90px"></select>
+              <select class="form-select" id="dashboard-month" onchange="updateDashboardMonth()" style="width:72px"></select>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chart-bar"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Taiwan Map -->
+      <div class="card mb-20">
+        <div class="flex-between mb-16">
+          <div>
+            <div class="card-title">醫院分佈地圖</div>
+            <div class="card-subtitle">台灣各縣市合作醫院分佈與查詢月份使用情況</div>
+          </div>
+        </div>
+        <div id="taiwan-map-container" style="display:flex;align-items:flex-start;gap:32px;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column">
+            <div class="map-photo-wrap" id="tw-map">
+              <img src="Taiwan_map.jpg" alt="台灣地圖">
+              <div id="map-markers"></div>
+            </div>
+            <!-- 地圖 legend 已移除 -->
+          </div>
+          <div style="flex:1;min-width:280px">
+            <div class="flex-between" style="margin-bottom:12px">
+              <div style="font-size:13px;font-weight:700;color:var(--text1)">醫院列表</div>
+              <div class="flex gap-10">
+                <select class="form-select" id="map-list-year" onchange="updateDashboardMonth(true)"></select>
+                <select class="form-select" id="map-list-month" onchange="updateDashboardMonth(true)"></select>
+              </div>
+            </div>
+            <div id="dashboard-hospital-list" style="display:flex;flex-direction:column;gap:10px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: USAGE (每月使用次數) -->
+    <div class="page" id="page-usage">
+      <div class="section-title">各院使用次數查詢</div>
+      <div class="section-sub">查詢各合作醫院每月醫療檢驗執行次數</div>
+
+      <div class="card mb-20">
+        <div class="filter-bar">
+          <select class="form-select" id="filter-year" onchange="renderUsageTable()">
+            <option>2024</option><option>2023</option>
+          </select>
+          <select class="form-select" id="filter-hospital" onchange="renderUsageTable()">
+            <option value="">全部醫院</option>
+            <option value="NTU">台大醫院</option>
+            <option value="FJU">輔大醫院</option>
+          </select>
+          <button class="btn btn-primary btn-sm btn-icon" onclick="downloadReport()">⬇ 下載報表</button>
+          <button class="btn btn-secondary btn-sm btn-icon staff-only" onclick="openModal('modal-input-usage')" style="display:none">＋ 輸入使用次數</button>
+        </div>
+        <div class="table-wrap">
+          <table id="usage-table">
+            <thead><tr>
+              <th>醫院</th>
+              <th>1月</th><th>2月</th><th>3月</th><th>4月</th><th>5月</th><th>6月</th>
+              <th>7月</th><th>8月</th><th>9月</th><th>10月</th><th>11月</th><th>12月</th>
+              <th>年度合計</th>
+            </tr></thead>
+            <tbody id="usage-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Charts section -->
+      <div class="card mb-20">
+        <div class="tab-bar">
+          <button class="tab active" onclick="switchUsageTab(this,'bar-month')">月度長條圖</button>
+          <button class="tab" onclick="switchUsageTab(this,'line-year')">年度趨勢折線圖</button>
+          <button class="tab" onclick="switchUsageTab(this,'predict')">趨勢預測</button>
+        </div>
+        <div id="ut-bar-month">
+          <div class="flex-between mb-16" style="align-items:center;flex-wrap:wrap;gap:8px">
+            <div style="font-size:13px;font-weight:600;color:var(--text2)">月份區間</div>
+            <div class="flex gap-10" style="align-items:center;flex-wrap:wrap">
+              <select class="form-select" id="usage-bar-year-from" onchange="initUsageCharts()" style="width:auto"></select>
+              <select class="form-select" id="usage-bar-month-from" onchange="initUsageCharts()" style="width:auto"></select>
+              <span style="color:var(--text3);font-size:13px">～</span>
+              <select class="form-select" id="usage-bar-year-to" onchange="initUsageCharts()" style="width:auto"></select>
+              <select class="form-select" id="usage-bar-month-to" onchange="initUsageCharts()" style="width:auto"></select>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="chart-usage-bar"></canvas></div>
+        </div>
+        <div id="ut-line-year" style="display:none">
+          <div class="flex-between mb-16" style="align-items:center;flex-wrap:wrap;gap:8px">
+            <div style="font-size:13px;font-weight:600;color:var(--text2)">年份區間</div>
+            <div class="flex gap-10" style="align-items:center;flex-wrap:wrap">
+              <select class="form-select" id="usage-line-year-from" onchange="initUsageCharts()" style="width:auto"></select>
+              <span style="color:var(--text3);font-size:13px">～</span>
+              <select class="form-select" id="usage-line-year-to" onchange="initUsageCharts()" style="width:auto"></select>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="chart-usage-line"></canvas></div>
+        </div>
+        <div id="ut-predict" style="display:none">
+          <div class="prediction-badge">📈 趨勢預測分析</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+            <select class="form-select" id="predict-hospital" onchange="buildPredictChart(predRange)" style="min-width:260px"></select>
+            <button class="btn btn-secondary btn-sm active" onclick="setPredRange(3,this)">未來3個月</button>
+            <button class="btn btn-secondary btn-sm" onclick="setPredRange(6,this)">未來半年</button>
+            <button class="btn btn-secondary btn-sm" onclick="setPredRange(12,this)">未來1年</button>
+            <button class="btn btn-secondary btn-sm" onclick="setPredRange(36,this)">未來3年</button>
+          </div>
+          <div class="chart-wrap" style="height:280px"><canvas id="chart-predict"></canvas></div>
+          <div style="font-size:12px;color:var(--text3);margin-top:8px">
+            ※ 預測基於歷史線性趨勢，僅供參考。實際使用量受多項因素影響。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: MAINTENANCE -->
+    <div class="page" id="page-maintenance">
+      <div class="section-title">報修紀錄管理</div>
+      <div class="section-sub">系統問題紀錄與追蹤</div>
+
+      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card">
+          <div class="stat-label">累計報修次數</div>
+          <div class="stat-value" style="color:var(--red)" id="stat-maint-total">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">已解決</div>
+          <div class="stat-value stat-v-green" id="stat-maint-solved">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">處理中</div>
+          <div class="stat-value stat-v-amber" id="stat-maint-pending">0</div>
+        </div>
+      </div>
+
+      <div class="chart-grid mb-20">
+        <div class="card">
+          <div class="card-title">各院報修次數</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="chart-maint-bar"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">問題類型分佈</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="chart-maint-pie"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex-between mb-16">
+          <div class="card-title" style="margin-bottom:0">報修紀錄列表</div>
+          <button class="btn btn-primary btn-sm btn-icon staff-only" onclick="openModal('modal-input-maint')" style="display:none">＋ 新增報修紀錄</button>
+        </div>
+
+        <!-- 搜尋篩選列 -->
+        <div class="filter-bar" style="flex-wrap:wrap;gap:10px;margin-bottom:14px;padding:14px;background:var(--surface2);border-radius:var(--radius-sm)">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1">
+            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">時間區間</label>
+            <input type="date" class="form-input" id="maint-search-date-from" style="width:140px" onchange="renderMaintTableFiltered()">
+            <span style="color:var(--text3);font-size:13px">～</span>
+            <input type="date" class="form-input" id="maint-search-date-to" style="width:140px" onchange="renderMaintTableFiltered()">
+            <select class="form-select" id="maint-search-hospital" style="width:auto;min-width:120px" onchange="renderMaintTableFiltered()">
+              <option value="">全部醫院</option>
+            </select>
+            <select class="form-select" id="maint-search-type" style="width:auto;min-width:130px" onchange="renderMaintTableFiltered()">
+              <option value="">全部問題類型</option>
+              <option>設備連線異常</option>
+              <option>影像撈取</option>
+              <option>PDF報告</option>
+              <option>資料庫連線</option>
+              <option>前端網站</option>
+              <option>HIS開單</option>
+              <option>其他</option>
+            </select>
+            <select class="form-select" id="maint-search-status" style="width:auto;min-width:100px" onchange="renderMaintTableFiltered()">
+              <option value="">全部狀態</option>
+              <option>處理中</option>
+              <option>已解決</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="clearMaintSearch()">清除</button>
+          </div>
+          <!-- 排序控制 -->
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">發生時間排序</label>
+            <button class="btn btn-secondary btn-sm btn-icon" id="maint-sort-btn" onclick="toggleMaintSort()">↓ 最新優先</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table id="maint-table">
+            <thead><tr>
+              <th>序號</th><th>醫院</th><th>問題類型</th><th>發生時間</th><th>問題描述</th><th>解決方法</th><th>填表人</th><th>狀態</th><th>操作</th>
+            </tr></thead>
+            <tbody id="maint-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: ACCOUNTS (admin only) -->
+    <div class="page" id="page-accounts">
+      <div class="section-title">帳號管理</div>
+      <div class="section-sub">建立、管理系統使用者帳號</div>
+
+      <div class="card">
+        <div class="flex-between mb-16">
+          <div class="card-title" style="margin-bottom:0">使用者列表</div>
+          <button class="btn btn-primary btn-sm btn-icon admin-only" onclick="openModal('modal-add-account')" style="display:none">＋ 新增帳號</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>姓名</th><th>帳號</th><th>E-Mail</th><th>身份</th><th>建立日期</th><th>操作</th>
+            </tr></thead>
+            <tbody id="accounts-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: HOSPITALS (admin only) -->
+    <div class="page" id="page-hospitals">
+      <div class="section-title">醫院管理</div>
+      <div class="section-sub">管理合作醫院資訊</div>
+
+      <div class="card">
+        <div class="flex-between mb-16">
+          <div class="card-title" style="margin-bottom:0">合作醫院列表</div>
+          <button class="btn btn-primary btn-sm btn-icon admin-only" onclick="openModal('modal-add-hospital')" style="display:none">＋ 新增醫院</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>醫院名稱</th><th>縣市</th><th>上線日期</th><th>狀態</th><th>操作</th>
+            </tr></thead>
+            <tbody id="hospitals-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ════ MODALS ════ -->
+<!-- Input Usage -->
+<div class="modal-backdrop" id="modal-input-usage">
+  <div class="modal">
+    <div class="modal-title">輸入每月使用次數</div>
+    <div class="form-row">
+      <div class="form-group-inner">
+        <label class="form-label">醫院</label>
+        <select class="form-select" id="usage-hospital"></select>
+      </div>
+      <div class="form-group-inner">
+        <label class="form-label">年份</label>
+        <select class="form-select" id="usage-year"></select>
+      </div>
+      <div class="form-group-inner">
+        <label class="form-label">月份</label>
+        <select class="form-select" id="usage-month"></select>
+      </div>
+    </div>
+    <div class="form-group-inner" style="margin-bottom:16px">
+      <label class="form-label">使用次數</label>
+      <input type="number" class="form-input" id="usage-count" placeholder="請輸入次數" min="0">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-input-usage')">取消</button>
+      <button class="btn btn-primary" onclick="saveUsageRecord()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Input Maintenance -->
+<div class="modal-backdrop" id="modal-input-maint">
+  <div class="modal">
+    <div class="modal-title" id="maint-modal-title">新增報修紀錄</div>
+    <div class="form-row">
+      <div class="form-group-inner">
+        <label class="form-label">醫院</label>
+        <select class="form-select" id="maint-hosp"></select>
+      </div>
+      <div class="form-group-inner">
+        <label class="form-label">發生時間</label>
+        <input type="datetime-local" class="form-input" id="maint-time">
+      </div>
+    </div>
+
+    <div class="form-group-inner" style="margin-bottom:16px">
+      <label class="form-label">問題類型 *</label>
+      <select class="form-select" id="maint-issue-type">
+        <option>設備連線異常</option>
+        <option>影像撈取</option>
+        <option>PDF報告</option>
+        <option>資料庫連線</option>
+        <option>前端網站</option>
+        <option>其他</option>
+      </select>
+    </div>
+
+    <div class="form-group-inner" style="margin-bottom:16px">
+      <label class="form-label">問題描述 *</label>
+      <textarea class="form-textarea" id="maint-desc" placeholder="請詳細描述問題發生情況..."></textarea>
+    </div>
+
+    <div class="form-group-inner" style="margin-bottom:16px">
+      <label class="form-label">解決方法</label>
+      <textarea class="form-textarea" id="maint-solve" placeholder="請填寫解決方式（可事後補填）..."></textarea>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group-inner">
+        <label class="form-label">填表人 *</label>
+        <input type="text" class="form-input" id="maint-reporter" placeholder="姓名">
+      </div>
+      <div class="form-group-inner">
+        <label class="form-label">狀態</label>
+        <select class="form-select" id="maint-status">
+          <option>處理中</option>
+          <option>已解決</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group-inner" style="margin-bottom:16px">
+      <label class="form-label">截圖上傳</label>
+      <div class="upload-area" onclick="this.querySelector('input').click()">
+        <input type="file" accept="image/*" style="display:none" multiple>
+        <div style="font-size:24px;margin-bottom:6px">📎</div>
+        <div style="font-size:13px">點擊上傳截圖（支援 JPG、PNG）</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-input-maint')">取消</button>
+      <button class="btn btn-primary" onclick="saveMaintRecord()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Account -->
+<div class="modal-backdrop" id="modal-add-account">
+  <div class="modal">
+    <div class="modal-title" id="account-modal-title">建立新帳號</div>
+    <div class="form-row">
+      <div class="form-group-inner">
+        <label class="form-label">姓名 *</label>
+        <input type="text" class="form-input" id="account-name" placeholder="真實姓名">
+      </div>
+      <div class="form-group-inner">
+        <label class="form-label">身份角色 *</label>
+        <select class="form-select" id="account-role">
+          <option>EBM員工</option>
+          <option>合作單位人員</option>
+          <option>最高權限管理員</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group-inner">
+        <label class="form-label">帳號 *</label>
+        <input type="text" class="form-input" id="account-user" placeholder="登入帳號">
+      </div>
+      <div class="form-group-inner">
+        <label class="form-label">密碼 *</label>
+        <input type="password" class="form-input" id="account-pass" placeholder="初始密碼">
+      </div>
+    </div>
+    <div class="form-group-inner" style="margin-bottom:16px">
+      <label class="form-label">E-Mail</label>
+      <input type="email" class="form-input" id="account-email" placeholder="電子信箱（選填）">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-account')">取消</button>
+      <button class="btn btn-primary" onclick="saveAccountDemo()">建立帳號</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Hospital -->
+<div class="modal-backdrop" id="modal-add-hospital">
+  <div class="modal">
+    <div class="modal-title" id="hospital-modal-title">新增合作醫院</div>
+
+    <div class="form-row">
+      <div class="form-group-inner">
+        <label class="form-label">醫院代碼 *</label>
+        <input type="text" class="form-input" id="hospital-id" placeholder="例：NTU、CMU">
+      </div>
+      <div class="form-group-inner">
+        <label class="form-label">醫院全名 *</label>
+        <input type="text" class="form-input" id="hospital-name" placeholder="例：國立臺灣大學醫學院附設醫院">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group-inner">
+        <label class="form-label">縣市 *</label>
+        <select class="form-select" id="hospital-city">
+          <option>台北市</option><option>新北市</option><option>基隆</option><option>桃園</option><option>新竹</option><option>苗栗</option>
+          <option>台中</option><option>彰化</option><option>南投</option><option>雲林</option><option>嘉義</option><option>台南</option><option>高雄</option>
+          <option>屏東</option><option>宜蘭</option><option>花蓮</option><option>台東</option><option>離島地區</option>
+        </select>
+      </div>
+      <div class="form-group-inner">
+        <label class="form-label">上線日期 *</label>
+        <input type="date" class="form-input" id="hospital-date">
+      </div>
+    </div>
+
+    <div class="form-group-inner" style="margin-bottom:16px">
+      <label class="form-label">院方聯絡人</label>
+      <input type="text" class="form-input" id="hospital-contact" placeholder="聯絡人姓名">
+    </div>
+
+    <div class="form-group-inner" style="margin-bottom:16px">
+      <label class="form-label">狀態</label>
+      <select class="form-select" id="hospital-status">
+        <option>已上線</option>
+        <option>洽談中</option>
+        <option>測試中</option>
+      </select>
+    </div>
+
+    <div class="form-group-inner" style="margin-bottom:16px">
+      <label class="form-label">E-Mail</label>
+      <input type="email" class="form-input" id="hospital-email" placeholder="聯絡信箱（選填）">
+    </div>
+
+    <div class="form-group-inner" style="margin-bottom:16px">
+      <label class="form-label">備註</label>
+      <textarea class="form-textarea" id="hospital-note" placeholder="補充說明（選填）"></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-hospital')">取消</button>
+      <button class="btn btn-primary" onclick="saveHospitalDemo()">新增</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DEMO MODE: 所有資料內建，無需外部 API ──
+
+const DEMO_HOSPITALS = [
+  { hospital_id:'NTU',  hospital_name:'臺灣大學醫學院附設醫院',  city:'台北市',  status:'已上線',  go_live_date:'2023-01-15', contact_person:'陳志遠',  contact_email:'chen@ntuh.gov.tw',  note:'' },
+  { hospital_id:'VGH',  hospital_name:'臺北榮民總醫院',          city:'台北市',  status:'已上線',  go_live_date:'2023-03-01', contact_person:'林佳穎',  contact_email:'lin@vghtpe.gov.tw', note:'' },
+  { hospital_id:'CGH',  hospital_name:'長庚紀念醫院',            city:'桃園',    status:'已上線',  go_live_date:'2023-06-01', contact_person:'黃文正',  contact_email:'huang@cgmh.org.tw',note:'' },
+  { hospital_id:'CMUH', hospital_name:'中國醫藥大學附設醫院',    city:'台中',    status:'已上線',  go_live_date:'2023-09-01', contact_person:'吳美玲',  contact_email:'wu@cmuh.org.tw',   note:'' },
+  { hospital_id:'NCKUH',hospital_name:'成功大學醫學院附設醫院',  city:'台南',    status:'已上線',  go_live_date:'2024-01-01', contact_person:'蔡宗翰',  contact_email:'tsai@mail.ncku.edu.tw', note:'' },
+  { hospital_id:'KMU',  hospital_name:'高雄醫學大學附設醫院',    city:'高雄',    status:'洽談中',  go_live_date:'',           contact_person:'王淑芬',  contact_email:'wang@kmuh.org.tw', note:'預計Q3上線' },
+  { hospital_id:'HCH',  hospital_name:'新竹台大分院',            city:'新竹',    status:'測試中',  go_live_date:'2024-07-01', contact_person:'鄭建宏',  contact_email:'jheng@ntuh.gov.tw',note:'試行階段' }
+];
+
+const DEMO_USAGE = (() => {
+  const rows = [];
+  const base = { NTU:210, VGH:185, CGH:155, CMUH:130, NCKUH:95, KMU:0, HCH:60 };
+  const start = { NTU:[2023,1], VGH:[2023,3], CGH:[2023,6], CMUH:[2023,9], NCKUH:[2024,1], KMU:[2025,7], HCH:[2024,7] };
+  let id = 1;
+  const now = new Date();
+  for(const [code, bv] of Object.entries(base)){
+    if(bv === 0) continue;
+    let [sy, sm] = start[code];
+    for(let y = sy; y <= 2025; y++){
+      for(let m = (y===sy?sm:1); m <= 12; m++){
+        if(y > now.getFullYear() || (y===now.getFullYear() && m > now.getMonth()+1)) break;
+        const trend = Math.floor((y - sy)*12 + (m - sm));
+        const growth = Math.min(trend * 2, 80);
+        const seasonal = [0,5,8,12,10,14,18,16,20,22,18,12][m-1];
+        const noise = Math.floor((Math.random()-0.5)*20);
+        const val = Math.max(10, bv + growth + seasonal + noise);
+        rows.push({ id: id++, hospital_id: code, year: y, month: m, usage_count: val, last_update_time: `${y}-${String(m).padStart(2,'0')}-28 10:00:00` });
+      }
+    }
+  }
+  return rows;
+})();
+
+const DEMO_MAINTENANCE = [
+  { id:1,  hospital_id:'NTU',  datetime:'2024-02-14 09:30:00', issue_type:'設備連線異常', description:'檢驗儀器無法連接至系統',         solution:'重新設定IP綁定，恢復連線',          reporter:'陳志遠', status:'已解決' },
+  { id:2,  hospital_id:'VGH',  datetime:'2024-03-22 14:10:00', issue_type:'報告產出異常', description:'PDF報告格式跑版',                 solution:'更新報表範本檔案',                  reporter:'林佳穎', status:'已解決' },
+  { id:3,  hospital_id:'CGH',  datetime:'2024-04-05 10:00:00', issue_type:'資料庫連線',   description:'資料庫寫入延遲，查詢超時',       solution:'擴充連接池上限，調整timeout設定',   reporter:'黃文正', status:'已解決' },
+  { id:4,  hospital_id:'NTU',  datetime:'2024-05-18 16:45:00', issue_type:'前端網站',     description:'Dashboard圖表無法正常顯示',      solution:'清除CDN快取後恢復正常',             reporter:'陳志遠', status:'已解決' },
+  { id:5,  hospital_id:'CMUH', datetime:'2024-06-03 11:20:00', issue_type:'HIS開單',      description:'HIS開單介面整合失敗',             solution:'更新API Token重新授權',             reporter:'吳美玲', status:'已解決' },
+  { id:6,  hospital_id:'NCKUH',datetime:'2024-08-19 09:00:00', issue_type:'設備連線異常', description:'新儀器型號驅動程式不相容',       solution:'安裝相容驅動，確認正常',            reporter:'蔡宗翰', status:'已解決' },
+  { id:7,  hospital_id:'HCH',  datetime:'2024-09-12 14:30:00', issue_type:'資料庫連線',   description:'測試期間資料庫連線不穩',         solution:'待處理',                            reporter:'鄭建宏', status:'處理中' },
+  { id:8,  hospital_id:'VGH',  datetime:'2024-11-07 10:15:00', issue_type:'報告產出異常', description:'特定檢驗項目報告缺漏欄位',       solution:'修正資料對應欄位定義',             reporter:'林佳穎', status:'已解決' },
+  { id:9,  hospital_id:'NTU',  datetime:'2025-01-23 15:00:00', issue_type:'前端網站',     description:'使用者反映登入頁面顯示異常',     solution:'修正CSS相容性問題',                 reporter:'陳志遠', status:'已解決' },
+  { id:10, hospital_id:'CMUH', datetime:'2025-03-08 09:40:00', issue_type:'HIS開單',      description:'批次開單回傳狀態碼錯誤',         solution:'調整API呼叫邏輯',                   reporter:'吳美玲', status:'已解決' },
+  { id:11, hospital_id:'CGH',  datetime:'2025-04-15 13:00:00', issue_type:'設備連線異常', description:'防火牆規則調整導致設備斷線',     solution:'配合IT更新ACL白名單',               reporter:'黃文正', status:'已解決' },
+  { id:12, hospital_id:'NCKUH',datetime:'2025-05-02 11:00:00', issue_type:'其他',          description:'每月報表匯出格式需調整',         solution:'持續追蹤',                          reporter:'蔡宗翰', status:'處理中' }
+];
+
+const DEMO_ACCOUNTS = [
+  { id:1, username:'admin',   password:'1234', name:'系統管理員', role:'admin',   hospital_id:'',     email:'admin@medstats.demo',   status:'active', create_time:'2023-01-01' },
+  { id:2, username:'staff',   password:'1234', name:'張雅婷',     role:'staff',   hospital_id:'',     email:'staff@medstats.demo',   status:'active', create_time:'2023-01-05' },
+  { id:3, username:'partner', password:'1234', name:'陳志遠',     role:'partner', hospital_id:'NTU',  email:'chen@ntuh.gov.tw',      status:'active', create_time:'2023-01-15' }
+];
+const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+const PALETTE = ['#0062cc','#0d9488','#7c3aed','#d97706','#dc2626','#16a34a','#0ea5e9','#14b8a6'];
+const ROLE_LABELS = { admin:'最高權限管理員', staff:'EBM員工', partner:'合作單位人員' };
+const ROLE_TO_NAV = { admin:'admin', staff:'staff', partner:'partner' };
+const CITY_COORDS = {
+  '台北市': {x:78,y:8}, '新北市': {x:79,y:15}, '基隆': {x:85,y:7}, '桃園': {x:62,y:12}, '新竹': {x:63,y:19}, '苗栗': {x:50,y:23},
+  '台中': {x:45,y:32}, '彰化': {x:40,y:39}, '南投': {x:60,y:45}, '雲林': {x:40,y:45}, '嘉義': {x:46,y:53}, '台南': {x:37,y:61}, 
+  '高雄': {x:31,y:70}, '屏東': {x:43,y:80}, '宜蘭': {x:85,y:24}, '花蓮': {x:75,y:44}, '台東': {x:57,y:75}, '離島地區': {x:5,y:10}
+};
+const NAV_CONFIG = {
+  admin: [
+    { section:'一般', items:[{ id:'dashboard', icon:'📊', label:'總覽儀表板' },{ id:'usage', icon:'📋', label:'使用次數查詢' },{ id:'maintenance', icon:'🔧', label:'報修紀錄' }]},
+    { section:'管理', items:[{ id:'accounts', icon:'👥', label:'帳號管理' },{ id:'hospitals', icon:'🏥', label:'醫院管理' }]},
+  ],
+  staff: [{ section:'一般', items:[{ id:'dashboard', icon:'📊', label:'總覽儀表板' },{ id:'usage', icon:'📋', label:'使用次數查詢' },{ id:'maintenance', icon:'🔧', label:'報修紀錄' }]}],
+  partner: [{ section:'一般', items:[{ id:'dashboard', icon:'📊', label:'總覽儀表板' },{ id:'usage', icon:'📋', label:'使用次數查詢' },{ id:'maintenance', icon:'🔧', label:'報修紀錄' }]}],
+};
+
+const appState = { accounts: [], hospitals: [], usageRows: [], maintenanceRows: [], usageMatrix: {}, hospitalMap: {} };
+const chartInstances = {};
+const currentDate = new Date();
+const dashboardState = { trendYear: String(currentDate.getFullYear()), monthYear: String(currentDate.getFullYear()), month: currentDate.getMonth() + 1 };
+let currentUser = null;
+let editingMaintId = null;
+let editingAccountId = null;
+let editingHospitalCode = null;
+let usageChartYear = String(currentDate.getFullYear());
+let predRange = 3;
+
+function destroyChart(id){ if(chartInstances[id]){ chartInstances[id].destroy(); delete chartInstances[id]; } }
+function destroyAllCharts(){ Object.keys(chartInstances).forEach(destroyChart); }
+function safeNum(v){ const n = Number(v); return Number.isFinite(n) ? n : 0; }
+function escapeHtml(v){ return String(v ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function normalizeDateTimeString(v){
+  if(v === null || v === undefined) return '';
+  let s = String(v).trim();
+  if(!s) return '';
+  s = s.replace(/\//g,'-').replace(/\.000Z$/,'').replace(/Z$/,'');
+  s = s.replace(/T/,' ');
+  const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if(m){
+    const [, y, mo, d, hh='00', mm='00', ss='00'] = m;
+    return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')} ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+  }
+  const date = new Date(s);
+  if(!Number.isNaN(date.getTime())){
+    const y = date.getFullYear();
+    const mo = String(date.getMonth()+1).padStart(2,'0');
+    const d = String(date.getDate()).padStart(2,'0');
+    const hh = String(date.getHours()).padStart(2,'0');
+    const mm = String(date.getMinutes()).padStart(2,'0');
+    const ss = String(date.getSeconds()).padStart(2,'0');
+    return `${y}-${mo}-${d} ${hh}:${mm}:${ss}`;
+  }
+  return s;
+}
+function getMaintDateTime(item){
+  return normalizeDateTimeString(
+    item?.datetime ?? item?.time ?? item?.maint_time ?? item?.發生時間 ?? item?.created_at ?? item?.timestamp ?? ''
+  );
+}
+function formatDateTimeLocal(v){
+  const s = normalizeDateTimeString(v);
+  if(!s) return '';
+  return s.replace(' ', 'T').slice(0,16);
+}
+function formatDateTimeDisplay(v){
+  const s = normalizeDateTimeString(v);
+  if(!s) return '';
+  return s.slice(0,16);
+}
+function formatDateDisplay(v){
+  if(!v) return '—';
+  // 只取日期部分（前10碼 YYYY-MM-DD），去除時間與時區
+  const s = String(v).replace('T',' ').trim();
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : s;
+}
+function toShortName(name){ if(!name) return ''; return String(name).replace('國立','').replace('醫學院附設醫院','').replace('大學附設醫院','').replace('紀念醫院','').replace('附設醫院','').trim(); }
+function roleLabel(role){ return ROLE_LABELS[role] || role || '未設定'; }
+function roleNav(role){ return ROLE_TO_NAV[role] || 'partner'; }
+function showNotice(msg, isError=false){ if(isError) alert('錯誤：' + msg); else alert(msg); }
+
+// ── DEMO: 所有寫入動作僅更新記憶體 ──
+async function apiGet(action, params={}){ return []; }
+async function apiPost(action, data={}){ return {}; }
+
+async function loadAllData(){
+  appState.hospitals       = JSON.parse(JSON.stringify(DEMO_HOSPITALS));
+  appState.usageRows       = JSON.parse(JSON.stringify(DEMO_USAGE));
+  appState.maintenanceRows = JSON.parse(JSON.stringify(DEMO_MAINTENANCE));
+  appState.accounts        = JSON.parse(JSON.stringify(DEMO_ACCOUNTS));
+  normalizeData();
+}
+
+function normalizeData(){
+  appState.hospitalMap = {};
+  appState.hospitals.forEach((h, idx) => {
+    const code = String(h.hospital_id || '').trim();
+    appState.hospitalMap[code] = {
+      code,
+      hospital_id: code,
+      fullName: h.hospital_name || code,
+      short: h.hospital_name || code,
+      city: h.city || '',
+      launch: formatDateDisplay(h.go_live_date),
+      status: h.status || '未設定',
+      color: PALETTE[idx % PALETTE.length],
+      x: (CITY_COORDS[h.city] || {x:45,y:50}).x,
+      y: (CITY_COORDS[h.city] || {x:45,y:50}).y,
+      contact: h.contact_person || '',
+      email: h.contact_email || '',
+      note: h.note || ''
+    };
+  });
+  appState.usageMatrix = {};
+  appState.usageRows.forEach(r => {
+    const year = String(r.year || '');
+    const code = String(r.hospital_id || '');
+    const month = safeNum(r.month);
+    if(!year || !code || month < 1 || month > 12) return;
+    if(!appState.usageMatrix[year]) appState.usageMatrix[year] = {};
+    if(!appState.usageMatrix[year][code]) appState.usageMatrix[year][code] = Array(12).fill(0);
+    appState.usageMatrix[year][code][month - 1] = safeNum(r.usage_count);
+  });
+}
+
+function rebuildLocalState() {
+  normalizeData();
+  populateStaticSelectors();
+}
+
+function rerenderUsageViews() {
+  renderUsageTable();
+  initUsageCharts();
+  renderDashboardStats();
+  initDashboardCharts();
+}
+
+function rerenderMaintenanceViews() {
+  renderMaintenanceStats();
+  renderMaintTableFiltered();
+  initMaintCharts();
+}
+
+function rerenderAccountsViews() {
+  renderAccounts();
+}
+
+function rerenderHospitalViews() {
+  renderHospitals();
+  renderDashboardStats();
+  initDashboardCharts();
+}
+
+function upsertLocalUsageRow(payload) {
+  const found = appState.usageRows.find(r =>
+    String(r.hospital_id) === String(payload.hospital_id) &&
+    String(r.year) === String(payload.year) &&
+    String(r.month) === String(payload.month)
+  );
+
+  const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  if (found) {
+    found.usage_count = payload.usage_count;
+    found.last_update_time = nowStr;
+  } else {
+    const maxId = appState.usageRows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
+    appState.usageRows.push({
+      id: maxId + 1,
+      hospital_id: payload.hospital_id,
+      year: payload.year,
+      month: payload.month,
+      usage_count: payload.usage_count,
+      last_update_time: nowStr
+    });
+  }
+
+  normalizeData();
+}
+
+function createLocalMaintenanceRow(payload) {
+  const maxId = appState.maintenanceRows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
+  const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  appState.maintenanceRows.push({
+    id: maxId + 1,
+    hospital_id: payload.hospital_id,
+    datetime: payload.datetime,
+    issue_type: payload.issue_type,
+    description: payload.description,
+    solution: payload.solution || '',
+    reporter: payload.reporter,
+    status: payload.status || '處理中',
+    create_time: nowStr,
+    update_time: nowStr
+  });
+}
+
+function updateLocalMaintenanceRow(id, payload) {
+  const row = appState.maintenanceRows.find(r => String(r.id) === String(id));
+  if (!row) return;
+
+  row.hospital_id = payload.hospital_id;
+  row.datetime = payload.datetime;
+  row.issue_type = payload.issue_type;
+  row.description = payload.description;
+  row.solution = payload.solution || '';
+  row.reporter = payload.reporter;
+  row.status = payload.status;
+  row.update_time = new Date().toISOString().slice(0, 19).replace('T', ' ');
+}
+
+function createLocalAccountRow(payload) {
+  const maxId = appState.accounts.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
+  const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  appState.accounts.push({
+    id: maxId + 1,
+    username: payload.username,
+    password: payload.password,
+    name: payload.name,
+    role: payload.role,
+    hospital_id: payload.hospital_id || '',
+    email: payload.email || '',
+    status: payload.status || 'active',
+    create_time: nowStr
+  });
+}
+
+function updateLocalAccountRow(id, payload) {
+  const row = appState.accounts.find(r => String(r.id) === String(id));
+  if (!row) return;
+
+  row.username = payload.username;
+  row.password = payload.password;
+  row.name = payload.name;
+  row.role = payload.role;
+  row.hospital_id = payload.hospital_id || '';
+  row.email = payload.email || '';
+  row.status = payload.status || 'active';
+}
+
+function deleteLocalAccountRow(id) {
+  appState.accounts = appState.accounts.filter(r => String(r.id) !== String(id));
+}
+
+function createLocalHospitalRow(payload) {
+  appState.hospitals.push({
+    hospital_id: payload.hospital_id,
+    hospital_name: payload.hospital_name,
+    city: payload.city || '',
+    status: payload.status || '',
+    go_live_date: payload.go_live_date || '',
+    contact_person: payload.contact_person || '',
+    contact_email: payload.contact_email || '',
+    note: payload.note || ''
+  });
+  rebuildLocalState();
+}
+
+function updateLocalHospitalRow(originalCode, payload) {
+  const row = appState.hospitals.find(r => String(r.hospital_id) === String(originalCode));
+  if (!row) return;
+
+  row.hospital_id = payload.hospital_id;
+  row.hospital_name = payload.hospital_name;
+  row.city = payload.city || '';
+  row.status = payload.status || '';
+  row.go_live_date = payload.go_live_date || '';
+  row.contact_person = payload.contact_person || '';
+  row.contact_email = payload.contact_email || '';
+  row.note = payload.note || '';
+
+  rebuildLocalState();
+}
+
+function deleteLocalHospitalRow(code) {
+  appState.hospitals = appState.hospitals.filter(r => String(r.hospital_id) !== String(code));
+  rebuildLocalState();
+}
+
+function getYears(){
+  const years = [];
+  for(let y = 2023; y <= 2030; y++) years.push(String(y));
+  return years;
+}
+function getHospitalCodes(includeAll=true){
+  const codes = Object.keys(appState.hospitalMap);
+  return includeAll ? [''].concat(codes) : codes;
+}
+function getUsageArray(year, code){
+  return (appState.usageMatrix[year] && appState.usageMatrix[year][code]) ? appState.usageMatrix[year][code] : Array(12).fill(0);
+}
+function getMonthUsageByYearMonth(year, month){
+  return Object.keys(appState.hospitalMap).map(code => ({ code, label: appState.hospitalMap[code].short || code, value: getUsageArray(year, code)[month-1] || 0 }));
+}
+function getLatestUpdateTime(){
+  const vals = appState.usageRows.map(r => r.last_update_time).filter(Boolean).sort();
+  return vals.length ? vals[vals.length-1] : '';
+}
+
+function updateAuthHint(){
+  const hint = document.querySelector('.auth-hint');
+  if(!hint) return;
+  hint.innerHTML = '';
+  hint.style.display = 'none';
+}
+
+async function bootstrap(){
+  try {
+    await loadAllData();
+    updateAuthHint();
+    populateStaticSelectors();
+  } catch(err){
+    console.error(err);
+    document.getElementById('auth-error').textContent = '資料載入失敗，請重新整理頁面。';
+    document.getElementById('auth-error').style.display = 'block';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', bootstrap);
+
+document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function doLogin(){
+  const uid = document.getElementById('login-user').value.trim();
+  const pwd = document.getElementById('login-pass').value;
+  const account = appState.accounts.find(a => String(a.username) === uid && String(a.password) === pwd && String(a.status || 'active') !== 'inactive');
+  if (!account) {
+    document.getElementById('auth-error').textContent = '帳號或密碼錯誤，或帳號已停用。';
+    document.getElementById('auth-error').style.display = 'block';
+    return;
+  }
+  currentUser = {
+    id: account.id,
+    username: account.username,
+    name: account.name || account.username,
+    role: account.role || 'partner',
+    roleLabel: roleLabel(account.role || 'partner'),
+    navRole: roleNav(account.role || 'partner'),
+    initials: String((account.name || account.username || '?')).trim().slice(0,1),
+    hospital_id: account.hospital_id || ''
+  };
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('auth-error').style.display = 'none';
+  initApp();
+}
+
+function doLogout(){
+  currentUser = null;
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+  destroyAllCharts();
+}
+
+function initApp(){
+  document.getElementById('user-avatar').textContent = currentUser.initials;
+  document.getElementById('user-name-display').textContent = currentUser.name;
+  document.getElementById('user-role-display').textContent = currentUser.roleLabel;
+
+  const nav = document.getElementById('sidebar-nav');
+  nav.innerHTML = '';
+  NAV_CONFIG[currentUser.navRole].forEach(sec => {
+    const div = document.createElement('div');
+    div.className = 'nav-section';
+    div.innerHTML = `<div class="nav-section-label">${sec.section}</div>`;
+    sec.items.forEach(item => {
+      const btn = document.createElement('div');
+      btn.className = 'nav-item' + (item.id === 'dashboard' ? ' active' : '');
+      btn.setAttribute('data-page', item.id);
+      btn.innerHTML = `<span class="ni">${item.icon}</span>${item.label}`;
+      btn.onclick = () => navigateTo(item.id);
+      div.appendChild(btn);
+    });
+    nav.appendChild(div);
+  });
+
+  document.querySelectorAll('.staff-only').forEach(el => {
+    el.style.display = (currentUser.navRole === 'admin' || currentUser.navRole === 'staff') ? 'inline-flex' : 'none';
+  });
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = (currentUser.navRole === 'admin') ? 'inline-flex' : 'none';
+  });
+
+  populateStaticSelectors();
+  navigateTo('dashboard');
+}
+
+function getUsageDateRange(){
+  // 從 usageRows 取得有資料的最早與最晚年月
+  const rows = appState.usageRows.filter(r => r.year && r.month);
+  if(!rows.length) {
+    const y = String(currentDate.getFullYear());
+    const m = currentDate.getMonth() + 1;
+    return { firstYear: y, firstMonth: 1, lastYear: y, lastMonth: m };
+  }
+  const sorted = rows.slice().sort((a,b) => {
+    const ay = Number(a.year), am = Number(a.month);
+    const by2 = Number(b.year), bm = Number(b.month);
+    return ay !== by2 ? ay - by2 : am - bm;
+  });
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  return {
+    firstYear: String(first.year),
+    firstMonth: Number(first.month),
+    lastYear: String(last.year),
+    lastMonth: Number(last.month)
+  };
+}
+
+function populateStaticSelectors(){
+  const years = getYears();
+  const currentYear = String(currentDate.getFullYear());
+  const currentMonth = currentDate.getMonth() + 1;
+  const range = getUsageDateRange();
+
+  // 修正4：年度趨勢折線圖預設：現在往前推一年 到 最後一筆資料
+  const oneYearAgoDate = new Date(currentDate);
+  oneYearAgoDate.setFullYear(oneYearAgoDate.getFullYear() - 1);
+  const trendDefaultYearFrom = String(oneYearAgoDate.getFullYear());
+  const trendDefaultMonthFrom = oneYearAgoDate.getMonth() + 1;
+
+  const yearOptions = years.map(y => `<option value="${y}">${y}年</option>`).join('');
+  const monthOptions = MONTHS.map((m,i) => `<option value="${i+1}">${m}</option>`).join('');
+
+  const setOpts = (id, html) => { const el = document.getElementById(id); if(el) el.innerHTML = html; };
+  const setVal  = (id, val)  => { const el = document.getElementById(id); if(el) el.value = String(val); };
+
+  // 年份選擇器（全部）
+  ['dashboard-trend-year-from','dashboard-trend-year-to',
+   'dashboard-month-year','map-list-year','filter-year','usage-year',
+   'usage-bar-year-from','usage-bar-year-to',
+   'usage-line-year-from','usage-line-year-to'].forEach(id => setOpts(id, yearOptions));
+
+  // 月份選擇器
+  ['dashboard-trend-month-from','dashboard-trend-month-to',
+   'dashboard-month','map-list-month','usage-month',
+   'usage-bar-month-from','usage-bar-month-to'].forEach(id => setOpts(id, monthOptions));
+
+  const hospitalOptions = Object.values(appState.hospitalMap).map(h => `<option value="${h.code}">${h.fullName}</option>`).join('');
+  const allHospitalOptions = `<option value="">全部醫院</option>` + hospitalOptions;
+  ['filter-hospital','maint-search-hospital'].forEach(id => setOpts(id, allHospitalOptions));
+  setOpts('usage-hospital', hospitalOptions);
+  setOpts('maint-hosp', hospitalOptions);
+  setOpts('predict-hospital', hospitalOptions);
+
+  // ── 修正1：趨勢圖預設 = 第一筆到最後一筆資料的年月 ──
+  setVal('dashboard-trend-year-from',  range.firstYear);
+  setVal('dashboard-trend-month-from', range.firstMonth);
+  setVal('dashboard-trend-year-to',    range.lastYear);
+  setVal('dashboard-trend-month-to',   range.lastMonth);
+  dashboardState.trendYearFrom  = range.firstYear;
+  dashboardState.trendMonthFrom = range.firstMonth;
+  dashboardState.trendYearTo    = range.lastYear;
+  dashboardState.trendMonthTo   = range.lastMonth;
+
+  // ── 修正2：各醫院月使用量預設 = 最後一筆資料的年月 ──
+  dashboardState.monthYear = range.lastYear;
+  dashboardState.month     = range.lastMonth;
+  setVal('dashboard-month-year', range.lastYear);
+  setVal('dashboard-month',      range.lastMonth);
+  setVal('map-list-year',        range.lastYear);
+  setVal('map-list-month',       range.lastMonth);
+
+  // 使用次數查詢頁
+  setVal('filter-year', currentYear);
+  setVal('usage-year',  currentYear);
+  setVal('usage-month', String(currentMonth));
+
+  // ── 修正4：年度趨勢折線圖預設 = 現在往前推一年 ──
+  setVal('usage-line-year-from', trendDefaultYearFrom);
+  setVal('usage-line-year-to',   currentYear);
+
+  // 月度長條圖預設 = 第一筆到最後一筆
+  setVal('usage-bar-year-from',  range.firstYear);
+  setVal('usage-bar-month-from', range.firstMonth);
+  setVal('usage-bar-year-to',    range.lastYear);
+  setVal('usage-bar-month-to',   range.lastMonth);
+
+  usageChartYear = currentYear;
+
+  const subtitle = `${range.firstYear}年${MONTHS[range.firstMonth-1]}～${range.lastYear}年${MONTHS[range.lastMonth-1]} 各醫院使用次數趨勢`;
+  const el = document.getElementById('trend-subtitle');
+  if(el) el.textContent = subtitle;
+}
+
+function navigateTo(pageId){
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + pageId); if(page) page.classList.add('active');
+  const navItem = document.querySelector(`[data-page="${pageId}"]`); if(navItem) navItem.classList.add('active');
+
+  if(pageId === 'dashboard'){ renderDashboardStats(); initDashboardCharts(); }
+  if(pageId === 'usage'){ renderUsageTable(); initUsageCharts(); }
+  if(pageId === 'maintenance'){ renderMaintenanceStats(); renderMaintTableFiltered(); initMaintCharts(); }
+  if(pageId === 'accounts'){ renderAccounts(); }
+  if(pageId === 'hospitals'){ renderHospitals(); }
+}
+
+function renderDashboardStats(){
+  const year = dashboardState.monthYear;
+  const month = dashboardState.month;
+  const currentTotal = getMonthUsageByYearMonth(year, month).reduce((a,b)=>a+b.value,0);
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevYear = month === 1 ? String(Number(year) - 1) : year;
+  const prevTotal = getMonthUsageByYearMonth(prevYear, prevMonth).reduce((a,b)=>a+b.value,0);
+  const delta = currentTotal - prevTotal;
+  const onlineCount = appState.hospitals.filter(h => String(h.status) === '已上線').length;
+  const totalUsage = appState.usageRows.reduce((sum,row)=>sum + safeNum(row.usage_count),0);
+  const latestUpdate = getLatestUpdateTime();
+
+  document.getElementById('stat-month-usage').textContent = currentTotal.toLocaleString('zh-TW');
+  document.getElementById('stat-month-change').textContent = `${delta >= 0 ? '↑' : '↓'} ${Math.abs(delta).toLocaleString('zh-TW')} 較上月`;
+  document.getElementById('stat-month-change').className = 'stat-change ' + (delta >= 0 ? 'up' : 'dn');
+  document.getElementById('stat-hospital-count').textContent = appState.hospitals.length.toLocaleString('zh-TW');
+  document.getElementById('stat-online-count').textContent = `已上線 ${onlineCount} 家`;
+  document.getElementById('stat-online-count').className = 'stat-change up';
+  document.getElementById('stat-total-usage').textContent = totalUsage.toLocaleString('zh-TW');
+  document.getElementById('stat-last-update').textContent = latestUpdate ? `更新時間：${formatDateTimeDisplay(latestUpdate)}` : '尚無更新紀錄';
+  document.getElementById('stat-last-update').className = 'stat-change up';
+}
+
+function chartOpts(){
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: {
+          font: { size: 12 },
+          padding: 16
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: '#f1f5f9' },
+        ticks: {
+          font: { size: 11 },
+          align: 'center'   
+        }
+      },
+      y: {
+        beginAtZero: true,
+        grid: { color: '#f1f5f9' },
+        ticks: {
+          font: { size: 11 },
+          precision: 0,     
+          callback: function(value) {
+            return Number.isInteger(value) ? value.toLocaleString() : '';
+          }
+        },
+        title: {
+          display: true,
+          text: '次數'
+        }
+      }
+    }
+  };
+}
+
+function updateDashboardTrend(){
+  dashboardState.trendYearFrom  = document.getElementById('dashboard-trend-year-from').value;
+  dashboardState.trendMonthFrom = Number(document.getElementById('dashboard-trend-month-from').value);
+  dashboardState.trendYearTo    = document.getElementById('dashboard-trend-year-to').value;
+  dashboardState.trendMonthTo   = Number(document.getElementById('dashboard-trend-month-to').value);
+  const subtitle = `${dashboardState.trendYearFrom}年${MONTHS[dashboardState.trendMonthFrom-1]}～${dashboardState.trendYearTo}年${MONTHS[dashboardState.trendMonthTo-1]} 各醫院使用次數趨勢`;
+  const el = document.getElementById('trend-subtitle');
+  if(el) el.textContent = subtitle;
+  initDashboardCharts();
+}
+
+function updateDashboardMonth(fromMap=false){
+  if(fromMap){ dashboardState.monthYear = document.getElementById('map-list-year').value; dashboardState.month = safeNum(document.getElementById('map-list-month').value); }
+  else { dashboardState.monthYear = document.getElementById('dashboard-month-year').value; dashboardState.month = safeNum(document.getElementById('dashboard-month').value); }
+  document.getElementById('dashboard-month-year').value = dashboardState.monthYear;
+  document.getElementById('dashboard-month').value = String(dashboardState.month);
+  document.getElementById('map-list-year').value = dashboardState.monthYear;
+  document.getElementById('map-list-month').value = String(dashboardState.month);
+  renderDashboardStats(); initDashboardCharts();
+}
+
+function renderDashboardHospitalList(){
+  const listEl = document.getElementById('dashboard-hospital-list');
+  const markersEl = document.getElementById('map-markers');
+  const year = dashboardState.monthYear;
+  const month = dashboardState.month;
+  const monthLabel = MONTHS[month-1];
+  const cards = Object.values(appState.hospitalMap).map(meta => {
+    const value = getUsageArray(year, meta.code)[month-1] || 0;
+    const statusPill = meta.status === '已上線'
+      ? `<div style="text-align:right"><div style="font-size:20px;font-weight:800;color:${meta.color}">${value}</div><div style="font-size:11px;color:var(--text3)">${year}年${monthLabel}使用次數</div></div>`
+      : `<div><span class="pill ${meta.status === '洽談中' ? 'pill-amber' : 'pill-blue'}">${escapeHtml(meta.status)}</span></div>`;
+    return `<div class="card" style="padding:14px 16px;border-left:4px solid ${meta.color};${meta.status !== '已上線' ? 'opacity:.75' : ''}"><div class="flex-between"><div><div style="font-weight:700;font-size:13px">${escapeHtml(meta.fullName)}</div><div style="font-size:12px;color:var(--text2)">${escapeHtml(meta.city)} · ${meta.status === '已上線' ? '上線日期' : '預計上線'}：${escapeHtml(meta.launch)}</div></div>${statusPill}</div></div>`;
+  }).join('');
+  listEl.innerHTML = cards || '<div class="empty-state">尚無醫院資料</div>';
+  markersEl.innerHTML = Object.values(appState.hospitalMap).map(meta => {
+    const markerColor = meta.status === '已上線' ? meta.color : (meta.status === '洽談中' ? '#f59e0b' : '#64748b');
+    const value = getUsageArray(year, meta.code)[month-1] || 0;
+    const title = meta.status === '已上線' ? `${meta.fullName}｜${year}年${monthLabel}：${value}次` : `${meta.fullName}｜${meta.status}`;
+    return `<div class="map-marker" title="${escapeHtml(title)}" data-short="${escapeHtml(meta.short)}" style="left:${meta.x}%;top:${meta.y}%;background:${markerColor}"></div>`;
+  }).join('');
+}
+
+function initDashboardCharts(){
+  const yearFrom  = dashboardState.trendYearFrom  || String(currentDate.getFullYear());
+  const monthFrom = dashboardState.trendMonthFrom || 1;
+  const yearTo    = dashboardState.trendYearTo    || String(currentDate.getFullYear());
+  const monthTo   = dashboardState.trendMonthTo   || (currentDate.getMonth() + 1);
+  const monthYear = dashboardState.monthYear;
+  const monthIndex = dashboardState.month - 1;
+  const monthLabel = MONTHS[monthIndex];
+
+  document.getElementById('bar-subtitle').textContent  = `${monthYear}年${monthLabel} 各醫院使用量`;
+  document.getElementById('pie-subtitle').textContent  = `${monthYear}年${monthLabel} 各醫院使用比例`;
+
+  // 趨勢折線圖：年月區間逐月產生 x 軸
+  const trendLabels = [];
+  let ty = Number(yearFrom), tm = Number(monthFrom);
+  const endY = Number(yearTo), endM = Number(monthTo);
+  while(ty < endY || (ty === endY && tm <= endM)){
+    trendLabels.push(`${ty}年${MONTHS[tm-1]}`);
+    tm++; if(tm > 12){ tm = 1; ty++; }
+  }
+
+  destroyChart('chart-trend');
+  chartInstances['chart-trend'] = new Chart(document.getElementById('chart-trend'), {
+    type:'line',
+    data:{
+      labels: trendLabels,
+      datasets: Object.values(appState.hospitalMap).map(meta => {
+        const data = [];
+        let y2 = Number(yearFrom), m2 = Number(monthFrom);
+        while(y2 < endY || (y2 === endY && m2 <= endM)){
+          data.push(getUsageArray(String(y2), meta.code)[m2-1] || 0);
+          m2++; if(m2 > 12){ m2 = 1; y2++; }
+        }
+        return { label: meta.fullName, data, borderColor: meta.color, backgroundColor: meta.color + '20', borderWidth: 2.5, pointRadius: trendLabels.length > 24 ? 2 : 4, fill: true, tension: .35 };
+      })
+    },
+    options: { ...chartOpts(), scales: { ...chartOpts().scales, x: { ...chartOpts().scales.x, ticks: { ...chartOpts().scales.x.ticks, maxRotation: 45 } } } }
+  });
+
+  const monthUsage = getMonthUsageByYearMonth(monthYear, dashboardState.month);
+  destroyChart('chart-pie');
+  chartInstances['chart-pie'] = new Chart(document.getElementById('chart-pie'), {
+    type:'doughnut',
+    data:{ labels:monthUsage.map(x=>x.label), datasets:[{ data:monthUsage.map(x=>x.value), backgroundColor:monthUsage.map(x=>appState.hospitalMap[x.code].color), borderWidth:0 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ font:{size:12}, padding:12 } } } }
+  });
+
+  destroyChart('chart-bar');
+  chartInstances['chart-bar'] = new Chart(document.getElementById('chart-bar'), {
+    type:'bar',
+    data:{ labels:monthUsage.map(x=>x.label), datasets:[{ data:monthUsage.map(x=>x.value), backgroundColor:monthUsage.map(x=>appState.hospitalMap[x.code].color), borderRadius:6 }] },
+    options:{ ...chartOpts(), plugins:{ legend:{ display:false } } }
+  });
+  renderDashboardHospitalList();
+}
+
+function renderUsageTable(){
+  const yr = document.getElementById('filter-year').value;
+  const filterHosp = document.getElementById('filter-hospital').value;
+  const codes = filterHosp ? [filterHosp] : Object.keys(appState.hospitalMap);
+  const tbody = document.getElementById('usage-tbody');
+  tbody.innerHTML = codes.map(code => {
+    const vals = getUsageArray(yr, code);
+    const total = vals.reduce((a,b)=>a+b,0);
+    return `<tr><td><b>${escapeHtml(appState.hospitalMap[code]?.short || code)}</b></td>${vals.map(v=>`<td class="td-num">${v}</td>`).join('')}<td class="td-num" style="font-size:15px">${total}</td></tr>`;
+  }).join('') || '<tr><td colspan="14" class="text-center">尚無資料</td></tr>';
+  usageChartYear = yr;
+  initUsageCharts();
+}
+
+function initUsageCharts(){
+  const codes = Object.keys(appState.hospitalMap);
+
+  // ── 月度長條圖：月份區間 ──
+  const barYearFrom  = document.getElementById('usage-bar-year-from')?.value  || usageChartYear;
+  const barMonthFrom = Number(document.getElementById('usage-bar-month-from')?.value || 1);
+  const barYearTo    = document.getElementById('usage-bar-year-to')?.value    || usageChartYear;
+  const barMonthTo   = Number(document.getElementById('usage-bar-month-to')?.value   || 12);
+
+  // 建立月份標籤序列
+  const barLabels = [];
+  let by = Number(barYearFrom), bm = barMonthFrom;
+  const endY = Number(barYearTo), endM = barMonthTo;
+  while(by < endY || (by === endY && bm <= endM)){
+    barLabels.push(`${by}年${MONTHS[bm-1]}`);
+    bm++; if(bm > 12){ bm = 1; by++; }
+  }
+
+  destroyChart('chart-usage-bar');
+  chartInstances['chart-usage-bar'] = new Chart(document.getElementById('chart-usage-bar'), {
+    type: 'bar',
+    data: {
+      labels: barLabels,
+      datasets: codes.map(code => {
+        const data = [];
+        let y2 = Number(barYearFrom), m2 = barMonthFrom;
+        while(y2 < endY || (y2 === endY && m2 <= endM)){
+          data.push(getUsageArray(String(y2), code)[m2-1] || 0);
+          m2++; if(m2 > 12){ m2 = 1; y2++; }
+        }
+        return { label: appState.hospitalMap[code].short || code, data, backgroundColor: appState.hospitalMap[code].color + 'cc', borderRadius: 5 };
+      })
+    },
+    options: {
+      ...chartOpts(),
+      scales: { ...chartOpts().scales, x: { ...chartOpts().scales.x, offset: true, ticks: { ...chartOpts().scales.x.ticks, align: 'center', maxRotation: barLabels.length > 12 ? 45 : 0 } } },
+      datasets: { bar: { barPercentage: 0.6, categoryPercentage: 0.6 } }
+    }
+  });
+
+  // ── 年度趨勢折線圖：年份區間 ──
+  const lineYearFrom = document.getElementById('usage-line-year-from')?.value || usageChartYear;
+  const lineYearTo   = document.getElementById('usage-line-year-to')?.value   || usageChartYear;
+  const lineYears = getYears().filter(y => y >= lineYearFrom && y <= lineYearTo);
+  const lineLabels = [];
+  lineYears.forEach(y => { MONTHS.forEach(m => lineLabels.push(`${y}年${m}`)); });
+
+  destroyChart('chart-usage-line');
+  chartInstances['chart-usage-line'] = new Chart(document.getElementById('chart-usage-line'), {
+    type: 'line',
+    data: {
+      labels: lineLabels,
+      datasets: codes.map(code => {
+        const data = [];
+        lineYears.forEach(y => { getUsageArray(y, code).forEach(v => data.push(v)); });
+        return { label: appState.hospitalMap[code].short || code, data, borderColor: appState.hospitalMap[code].color, backgroundColor: appState.hospitalMap[code].color + '15', borderWidth: 2.5, pointRadius: lineYears.length > 1 ? 2 : 3, fill: true, tension: .3 };
+      })
+    },
+    options: { ...chartOpts(), scales: { ...chartOpts().scales, x: { ...chartOpts().scales.x, ticks: { ...chartOpts().scales.x.ticks, maxRotation: 45 } } } }
+  });
+
+  buildPredictChart(predRange);
+}
+
+function buildPredictChart(months) {
+  predRange = months;
+  destroyChart('chart-predict');
+
+  const predictSelect = document.getElementById('predict-hospital');
+  const selectedCode = predictSelect && predictSelect.value
+    ? predictSelect.value
+    : Object.keys(appState.hospitalMap)[0];
+  const selectedHospital = appState.hospitalMap[selectedCode];
+
+  if (!selectedCode || !selectedHospital) {
+    return;
+  }
+
+  // 1. 只抓這間醫院的 Usage 資料
+  const hospitalUsageRows = appState.usageRows
+    .filter(r => String(r.hospital_id) === String(selectedCode))
+    .map(r => ({
+      year: Number(r.year),
+      month: Number(r.month),
+      usage_count: safeNum(r.usage_count)
+    }))
+    .filter(r =>
+      Number.isFinite(r.year) &&
+      Number.isFinite(r.month) &&
+      r.month >= 1 &&
+      r.month <= 12
+    )
+    .sort((a, b) => (a.year - b.year) || (a.month - b.month));
+
+  if (!hospitalUsageRows.length) {
+    return;
+  }
+
+  // 2. 找最早與最後的月份
+  const firstRow = hospitalUsageRows[0];
+  const lastRow = hospitalUsageRows[hospitalUsageRows.length - 1];
+
+  // 3. 轉成查找表，方便補齊缺漏月份
+  const usageMap = {};
+  hospitalUsageRows.forEach(r => {
+    usageMap[`${r.year}-${r.month}`] = r.usage_count;
+  });
+
+  // 4. 從最早月份開始，連續建立歷史資料
+  const allHistory = [];
+  let y = firstRow.year;
+  let m = firstRow.month;
+
+  while (y < lastRow.year || (y === lastRow.year && m <= lastRow.month)) {
+    allHistory.push({
+      year: y,
+      month: m,
+      label: `${y}年${m}月`,
+      value: safeNum(usageMap[`${y}-${m}`] ?? 0)
+    });
+
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
+  }
+
+  const histLabels = allHistory.map(x => x.label);
+  const histData = allHistory.map(x => x.value);
+
+  // 5. 用歷史非 0 資料當預測基準
+  const recentNonZero = histData.filter(v => v > 0);
+  const recentBase = recentNonZero.length
+    ? recentNonZero.slice(-3)
+    : [0, 0, 0];
+  const avg = recentBase.reduce((a, b) => a + b, 0) / recentBase.length;
+
+  // 6. 預測月份的 x 軸，從最後歷史月份往後推
+  const predLabels = [];
+  const predData = [];
+
+  let predYear = lastRow.year;
+  let predMonth = lastRow.month;
+
+  for (let i = 1; i <= months; i++) {
+    predMonth++;
+    if (predMonth > 12) {
+      predMonth = 1;
+      predYear++;
+    }
+
+    predLabels.push(`${predYear}年${predMonth}月`);
+    predData.push(Math.max(0, Math.round(avg + i)));
+  }
+
+  chartInstances['chart-predict'] = new Chart(document.getElementById('chart-predict'), {
+    type: 'line',
+    data: {
+      labels: [...histLabels, ...predLabels],
+      datasets: [
+        {
+          label: `歷史資料（${selectedHospital.fullName}）`,
+          data: [...histData, ...Array(predLabels.length).fill(null)],
+          borderColor: selectedHospital.color,
+          backgroundColor: selectedHospital.color + '20',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          tension: .3,
+          fill: true
+        },
+        {
+          label: '預測值',
+          data: [
+            ...Array(histLabels.length - 1).fill(null),
+            histData[histData.length - 1] || 0,
+            ...predData
+          ],
+          borderColor: '#7c3aed',
+          backgroundColor: '#7c3aed15',
+          borderWidth: 2,
+          borderDash: [6, 3],
+          pointRadius: 4,
+          tension: .3,
+          fill: true
+        }
+      ]
+    },
+    options: chartOpts()
+  });
+}
+
+function setPredRange(months, btn) {
+  predRange = months;
+  document.querySelectorAll('#ut-predict .btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildPredictChart(months);
+}
+
+function renderMaintenanceStats(){
+  const total = appState.maintenanceRows.length;
+  const solved = appState.maintenanceRows.filter(r => String(r.status) === '已解決').length;
+  const pending = appState.maintenanceRows.filter(r => String(r.status) !== '已解決').length;
+  document.getElementById('stat-maint-total').textContent = total;
+  document.getElementById('stat-maint-solved').textContent = solved;
+  document.getElementById('stat-maint-pending').textContent = pending;
+}
+
+let maintSortAsc = false; // false = 最新優先（降冪）
+
+function toggleMaintSort(){
+  maintSortAsc = !maintSortAsc;
+  const btn = document.getElementById('maint-sort-btn');
+  if(btn) btn.textContent = maintSortAsc ? '↑ 最舊優先' : '↓ 最新優先';
+  renderMaintTableFiltered();
+}
+
+function clearMaintSearch(){
+  ['maint-search-date-from','maint-search-date-to'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  ['maint-search-hospital','maint-search-type','maint-search-status'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  renderMaintTableFiltered();
+}
+
+function renderMaintTableFiltered(){
+  const dateFrom  = document.getElementById('maint-search-date-from')?.value  || '';
+  const dateTo    = document.getElementById('maint-search-date-to')?.value    || '';
+  const filterHosp = document.getElementById('maint-search-hospital')?.value  || '';
+  const filterType = document.getElementById('maint-search-type')?.value      || '';
+  const filterStat = document.getElementById('maint-search-status')?.value    || '';
+  renderMaintTable(filterHosp, filterType, filterStat, dateFrom, dateTo);
+}
+
+function renderMaintTable(filterHosp, filterType='', filterStat='', dateFrom='', dateTo=''){
+  const tbody = document.getElementById('maint-tbody');
+  let rows = appState.maintenanceRows.slice();
+
+  if(filterHosp) rows = rows.filter(m => String(m.hospital_id) === String(filterHosp));
+  if(filterType) rows = rows.filter(m => String(m.issue_type || '') === String(filterType));
+  if(filterStat) rows = rows.filter(m => String(m.status || '') === String(filterStat));
+  if(dateFrom)   rows = rows.filter(m => getMaintDateTime(m).slice(0,10) >= dateFrom);
+  if(dateTo)     rows = rows.filter(m => getMaintDateTime(m).slice(0,10) <= dateTo);
+
+  rows.sort((a, b) => {
+    const cmp = getMaintDateTime(a).localeCompare(getMaintDateTime(b));
+    return maintSortAsc ? cmp : -cmp;
+  });
+
+  tbody.innerHTML = rows.map(m => {
+    const hosp = appState.hospitalMap[m.hospital_id]?.short || m.hospital_id;
+    const displayTime = formatDateTimeDisplay(getMaintDateTime(m)) || '—';
+    return `<tr><td><span class="pill pill-blue">${escapeHtml(m.id)}</span></td><td>${escapeHtml(hosp)}</td><td>${escapeHtml(m.issue_type || '其他')}</td><td style="white-space:nowrap;font-size:12px">${escapeHtml(displayTime)}</td><td style="max-width:180px;font-size:13px">${escapeHtml(m.description)}</td><td style="max-width:160px;font-size:13px;color:var(--text2)">${escapeHtml(m.solution || '')}</td><td>${escapeHtml(m.reporter || '')}</td><td><span class="pill ${m.status === '已解決' ? 'pill-green' : 'pill-amber'}">${escapeHtml(m.status || '')}</span></td><td><div class="action-group">${currentUser && currentUser.navRole !== 'partner' ? `<button class="btn btn-secondary btn-sm" onclick="editMaintRecord('${escapeHtml(m.id)}')">編輯</button>` : ''}</div></td></tr>`;
+  }).join('') || '<tr><td colspan="9" class="text-center">尚無符合條件的報修紀錄</td></tr>';
+}
+
+function initMaintCharts(){
+  const hospList = Object.values(appState.hospitalMap);
+
+  const countsByHosp = hospList.map(h =>
+    appState.maintenanceRows.filter(m => String(m.hospital_id) === String(h.code)).length
+  );
+
+  destroyChart('chart-maint-bar');
+  chartInstances['chart-maint-bar'] = new Chart(document.getElementById('chart-maint-bar'), {
+    type: 'bar',
+    data: {
+      labels: hospList.map(h => h.fullName),
+      datasets: [{
+        data: countsByHosp,
+        backgroundColor: hospList.map(h => h.color),
+        borderRadius: 6
+      }]
+    },
+    options: {
+      ...chartOpts(),
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        ...chartOpts().scales,
+        y: {
+          ...chartOpts().scales.y,
+          ticks: {
+            stepSize: 1,
+            precision: 0,
+            callback: value => Number(value).toLocaleString('zh-TW')
+          }
+        }
+      }
+    }
+  });
+
+  const issueCount = {};
+  appState.maintenanceRows.forEach(item => {
+    const key = item.issue_type || '其他';
+    issueCount[key] = (issueCount[key] || 0) + 1;
+  });
+
+  destroyChart('chart-maint-pie');
+  chartInstances['chart-maint-pie'] = new Chart(document.getElementById('chart-maint-pie'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(issueCount),
+      datasets: [{
+        data: Object.values(issueCount),
+        backgroundColor: PALETTE,
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            font: { size: 11 },
+            padding: 10
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderAccounts(){
+  const tbody = document.getElementById('accounts-tbody');
+  tbody.innerHTML = appState.accounts.map(a => {
+    const mappedRole = roleLabel(a.role);
+    const hosp = a.hospital_id === '合作廠商' ? '合作廠商' : (appState.hospitalMap[a.hospital_id]?.short || '—');
+    return `<tr><td><b>${escapeHtml(a.name)}</b></td><td><code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:12px">${escapeHtml(a.username)}</code></td><td style="color:var(--text2);font-size:13px">${escapeHtml(a.email || '—')}</td><td><span class="pill ${a.role==='admin'?'pill-purple':a.role==='staff'?'pill-blue':'pill-teal'}">${escapeHtml(mappedRole)}</span></td><td style="color:var(--text2);font-size:12px">${escapeHtml(formatDateDisplay(a.create_time))}</td><td><div class="action-group"><button class="btn btn-secondary btn-sm" onclick="editAccount('${escapeHtml(a.id)}')">編輯</button><button class="btn btn-danger btn-sm" onclick="deleteAccountConfirm('${escapeHtml(a.id)}')">刪除</button></div></td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="text-center">尚無帳號資料</td></tr>';
+}
+
+function editAccount(id){
+  const item = appState.accounts.find(a => String(a.id) === String(id)); if(!item) return;
+  editingAccountId = id;
+  document.getElementById('account-modal-title').textContent = '編輯帳號';
+  document.getElementById('account-name').value = item.name || '';
+  document.getElementById('account-user').value = item.username || '';
+  document.getElementById('account-pass').value = item.password || '';
+  document.getElementById('account-email').value = item.email || '';
+  document.getElementById('account-role').value = roleLabel(item.role);
+  openModal('modal-add-account');
+}
+
+async function saveAccountDemo(){
+  const roleMap = { '最高權限管理員':'admin', 'EBM員工':'staff', '合作單位人員':'partner' };
+  const payload = {
+    username: document.getElementById('account-user').value.trim(),
+    password: document.getElementById('account-pass').value,
+    name: document.getElementById('account-name').value.trim(),
+    role: roleMap[document.getElementById('account-role').value] || 'partner',
+    hospital_id: '',
+    email: document.getElementById('account-email').value.trim(),
+    status: 'active'
+  };
+
+  if (!payload.username || !payload.password || !payload.name) {
+    return showNotice('姓名、帳號、密碼皆為必填', true);
+  }
+
+  try {
+    if (editingAccountId) {
+      await apiPost('updateAccount', { id: editingAccountId, ...payload });
+      updateLocalAccountRow(editingAccountId, payload);
+    } else {
+      await apiPost('createAccount', payload);
+      createLocalAccountRow(payload);
+    }
+
+    rerenderAccountsViews();
+
+    closeModal('modal-add-account');
+    showNotice(editingAccountId ? '帳號已更新' : '帳號已建立');
+  } catch(err){
+    showNotice(err.message, true);
+  }
+}
+
+async function deleteAccountConfirm(id){
+  if (!confirm('確定要刪除此帳號？')) return;
+
+  try {
+    await apiPost('deleteAccount', { id });
+    deleteLocalAccountRow(id);
+    rerenderAccountsViews();
+    showNotice('帳號已刪除');
+  } catch(err){
+    showNotice(err.message, true);
+  }
+}
+
+function renderHospitals(){
+  const tbody = document.getElementById('hospitals-tbody');
+  tbody.innerHTML = appState.hospitals.map(h => `<tr><td><b>${escapeHtml(h.hospital_name)}</b></td><td>${escapeHtml(h.city || '')}</td><td style="font-size:12px">${escapeHtml(formatDateDisplay(h.go_live_date))}</td><td><span class="pill ${h.status==='已上線'?'pill-green':h.status==='洽談中'?'pill-amber':'pill-blue'}">${escapeHtml(h.status || '')}</span></td><td><div class="action-group"><button class="btn btn-secondary btn-sm" onclick="editHospital('${escapeHtml(h.hospital_id)}')">編輯</button><button class="btn btn-danger btn-sm" onclick="deleteHospitalConfirm('${escapeHtml(h.hospital_id)}')">刪除</button></div></td></tr>`).join('') || '<tr><td colspan="5" class="text-center">尚無醫院資料</td></tr>';
+}
+
+function editHospital(code){
+  const item = appState.hospitals.find(h => String(h.hospital_id) === String(code)); if(!item) return;
+  editingHospitalCode = code;
+  document.getElementById('hospital-id').value = item.hospital_id || '';
+  document.getElementById('hospital-modal-title').textContent = '編輯合作醫院';
+  document.getElementById('hospital-name').value = item.hospital_name || '';
+  document.getElementById('hospital-city').value = item.city || '台北市';
+  document.getElementById('hospital-date').value = item.go_live_date || '';
+  document.getElementById('hospital-contact').value = item.contact_person || '';
+  document.getElementById('hospital-status').value = item.status || '已上線';
+  document.getElementById('hospital-email').value = item.contact_email || '';
+  document.getElementById('hospital-note').value = item.note || '';
+  openModal('modal-add-hospital');
+}
+
+async function saveHospitalDemo(){
+  const payload = {
+    hospital_id: document.getElementById('hospital-id').value.trim().toUpperCase(),
+    hospital_name: document.getElementById('hospital-name').value.trim(),
+    city: document.getElementById('hospital-city').value,
+    go_live_date: document.getElementById('hospital-date').value,
+    contact_person: document.getElementById('hospital-contact').value.trim(),
+    contact_email: document.getElementById('hospital-email').value.trim(),
+    note: document.getElementById('hospital-note').value.trim(),
+    status: document.getElementById('hospital-status').value
+  };
+
+  if (!payload.hospital_id) {
+    showNotice('請輸入醫院代碼', true);
+    return;
+  }
+  if (!payload.hospital_name) {
+    showNotice('請輸入醫院全名', true);
+    return;
+  }
+
+  try {
+    if (editingHospitalCode) {
+      await apiPost('updateHospital', { original_hospital_id: editingHospitalCode, ...payload });
+      updateLocalHospitalRow(editingHospitalCode, payload);
+    } else {
+      await apiPost('createHospital', payload);
+      createLocalHospitalRow(payload);
+    }
+
+    rerenderHospitalViews();
+
+    closeModal('modal-add-hospital');
+    showNotice(editingHospitalCode ? '醫院資料已更新' : '醫院資料已新增');
+  } catch(err){
+    showNotice(err.message, true);
+  }
+}
+
+async function deleteHospitalConfirm(code){
+  if (!confirm('確定要刪除此合作醫院？')) return;
+
+  try {
+    await apiPost('deleteHospital', { hospital_id: code });
+    deleteLocalHospitalRow(code);
+    rerenderHospitalViews();
+    showNotice('醫院資料已刪除');
+  } catch(err){
+    showNotice(err.message, true);
+  }
+}
+
+function editMaintRecord(id){
+  const item = appState.maintenanceRows.find(m => String(m.id) === String(id)); if(!item) return;
+  editingMaintId = id;
+  document.getElementById('maint-modal-title').textContent = '編輯報修紀錄';
+  document.getElementById('maint-hosp').value = item.hospital_id || '';
+  document.getElementById('maint-time').value = formatDateTimeLocal(getMaintDateTime(item));
+  document.getElementById('maint-issue-type').value = item.issue_type || '設備連線異常';
+  document.getElementById('maint-desc').value = item.description || '';
+  document.getElementById('maint-solve').value = item.solution || '';
+  document.getElementById('maint-reporter').value = item.reporter || '';
+  document.getElementById('maint-status').value = item.status || '處理中';
+  openModal('modal-input-maint');
+}
+
+async function saveMaintRecord(){
+  const payload = {
+    hospital_id: document.getElementById('maint-hosp').value,
+    datetime: formatDateTimeDisplay(document.getElementById('maint-time').value),
+    issue_type: document.getElementById('maint-issue-type').value,
+    description: document.getElementById('maint-desc').value.trim(),
+    solution: document.getElementById('maint-solve').value.trim(),
+    reporter: document.getElementById('maint-reporter').value.trim(),
+    status: document.getElementById('maint-status').value
+  };
+
+  if (!payload.hospital_id || !payload.datetime || !payload.issue_type || !payload.description || !payload.reporter) {
+    return showNotice('請完整填寫報修紀錄必填欄位', true);
+  }
+
+  try {
+    if (editingMaintId) {
+      await apiPost('updateMaintenance', { id: editingMaintId, ...payload });
+      updateLocalMaintenanceRow(editingMaintId, payload);
+    } else {
+      await apiPost('createMaintenance', payload);
+      createLocalMaintenanceRow(payload);
+    }
+
+    rerenderMaintenanceViews();
+
+    closeModal('modal-input-maint');
+    showNotice(editingMaintId ? '報修紀錄已更新' : '報修紀錄已新增');
+  } catch(err){
+    showNotice(err.message, true);
+  }
+}
+
+async function saveUsageRecord(){
+  const payload = {
+    hospital_id: document.getElementById('usage-hospital').value,
+    year: safeNum(document.getElementById('usage-year').value),
+    month: safeNum(document.getElementById('usage-month').value),
+    usage_count: safeNum(document.getElementById('usage-count').value)
+  };
+
+  if (!payload.hospital_id || !payload.year || !payload.month) {
+    return showNotice('請完整填寫使用次數資料', true);
+  }
+
+  try {
+    await apiPost('upsertUsage', payload);
+
+    upsertLocalUsageRow(payload);
+
+    dashboardState.monthYear = String(payload.year);
+    dashboardState.trendYear = String(payload.year);
+    dashboardState.month = payload.month;
+
+    rerenderUsageViews();
+
+    closeModal('modal-input-usage');
+    showNotice('使用次數已儲存');
+  } catch(err){
+    showNotice(err.message, true);
+  }
+}
+
+function switchUsageTab(btn, tabId){
+  document.querySelectorAll('.tab-bar .tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('ut-bar-month').style.display = 'none';
+  document.getElementById('ut-line-year').style.display = 'none';
+  document.getElementById('ut-predict').style.display = 'none';
+  document.getElementById('ut-' + tabId).style.display = 'block';
+}
+
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){
+  document.getElementById(id).classList.remove('open');
+  if(id === 'modal-input-maint'){ if(!editingMaintId) document.getElementById('maint-modal-title').textContent = '新增報修紀錄'; document.getElementById('maint-time').value=''; document.getElementById('maint-issue-type').value='設備連線異常'; document.getElementById('maint-desc').value=''; document.getElementById('maint-solve').value=''; document.getElementById('maint-reporter').value=''; document.getElementById('maint-status').value='處理中'; editingMaintId = null; }
+  if(id === 'modal-add-account'){ if(!editingAccountId) document.getElementById('account-modal-title').textContent = '建立新帳號'; document.getElementById('account-name').value=''; document.getElementById('account-user').value=''; document.getElementById('account-pass').value=''; document.getElementById('account-email').value=''; document.getElementById('account-role').value='合作單位人員'; editingAccountId = null; }
+  if(id === 'modal-add-hospital'){
+    if(!editingHospitalCode) document.getElementById('hospital-modal-title').textContent = '新增合作醫院';
+    document.getElementById('hospital-id').value = '';
+    document.getElementById('hospital-name').value = '';
+    document.getElementById('hospital-date').value = '';
+    document.getElementById('hospital-contact').value = '';
+    document.getElementById('hospital-email').value = '';
+    document.getElementById('hospital-note').value = '';
+    document.getElementById('hospital-status').value = '已上線';
+    editingHospitalCode = null;
+  }
+  if(id === 'modal-input-usage'){ document.getElementById('usage-count').value=''; document.getElementById('usage-year').value = dashboardState.monthYear; document.getElementById('usage-month').value = String(dashboardState.month); }
+}
+document.querySelectorAll('.modal-backdrop').forEach(bd => bd.addEventListener('click', e => { if (e.target === bd) bd.classList.remove('open'); }));
+
+function downloadReport(){
+  // 依趨勢圖選擇的年月區間產生 CSV
+  const yearFrom  = dashboardState.trendYearFrom  || String(currentDate.getFullYear());
+  const monthFrom = Number(dashboardState.trendMonthFrom || 1);
+  const yearTo    = dashboardState.trendYearTo    || String(currentDate.getFullYear());
+  const monthTo   = Number(dashboardState.trendMonthTo   || (currentDate.getMonth() + 1));
+
+  // 產生區間內所有年月標籤序列
+  const periodLabels = [];
+  let y = Number(yearFrom), m = monthFrom;
+  const eY = Number(yearTo), eM = monthTo;
+  while(y < eY || (y === eY && m <= eM)){
+    periodLabels.push({ year: String(y), month: m, label: `${y}年${MONTHS[m-1]}` });
+    m++; if(m > 12){ m = 1; y++; }
+  }
+
+  const codes = Object.keys(appState.hospitalMap);
+  const rangeLabel = `${yearFrom}年${MONTHS[monthFrom-1]}～${yearTo}年${MONTHS[monthTo-1]}`;
+
+  // Header 列
+  const lines = [
+    'MedStats 醫療檢驗執行次數報表',
+    `區間,${rangeLabel}`,
+    '醫院,' + periodLabels.map(p => p.label).join(',') + ',區間合計'
+  ];
+
+  // 每家醫院一列
+  codes.forEach(code => {
+    const vals = periodLabels.map(p => getUsageArray(p.year, code)[p.month - 1] || 0);
+    lines.push(`${appState.hospitalMap[code].fullName},${vals.join(',')},${vals.reduce((a,b)=>a+b,0)}`);
+  });
+
+  const csv = lines.join('\n');
+  const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `MedStats_${yearFrom}${String(monthFrom).padStart(2,'0')}-${yearTo}${String(monthTo).padStart(2,'0')}_執行次數報表.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function refreshDataAndPage(pageId){
+  await loadAllData();
+  populateStaticSelectors();
+  if(pageId) navigateTo(pageId);
+}
+</script>
+</body>
+</html>
